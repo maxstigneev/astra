@@ -10,18 +10,16 @@
 - Автоматически обновляет поток при загрузке видео
 - Опционально создаёт swap
 
----
-
 ## Быстрый старт
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/maxstigneev/astra/main/astra.sh -o astra.sh
-chmod +x astra.sh
-sudo ./astra.sh
+curl -fsSL https://raw.githubusercontent.com/maxstigneev/astra/main/install.sh -o install.sh
+chmod +x install.sh
+sudo ./install.sh
 ```
 
 После установки поток доступен по адресу:
-http://YOUR_IP/file-tv/index.m3u8
+http://IP_СЕРВЕРА/file-tv/index.m3u8
 
 ## Как работает
 video files → playlist → ffmpeg → HLS → nginx
@@ -33,8 +31,6 @@ video files → playlist → ffmpeg → HLS → nginx
 - Защита от гонок (lock file)
 - Идемпотентная установка
 - Интерактивный installer
-
----
 
 ## Ограничения
 
