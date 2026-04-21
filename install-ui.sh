@@ -16,33 +16,33 @@ UI_PORT="8080"
 
 require_supported_os() {
   if [[ "$(uname -s)" != "Linux" ]]; then
-    fail "This script is intended for Ubuntu/Debian servers and cannot run on macOS"
+    fail "Этот скрипт предназначен для серверов Ubuntu/Debian и не может запускаться на macOS"
   fi
 
   if [[ ! -f /etc/os-release ]]; then
-    fail "Cannot detect operating system. Ubuntu/Debian server is required"
+    fail "Не удалось определить операционную систему. Нужен сервер Ubuntu/Debian"
   fi
 
   . /etc/os-release
   if [[ "${ID:-}" != "ubuntu" && "${ID:-}" != "debian" ]]; then
-    fail "Unsupported OS: ${PRETTY_NAME:-unknown}. Use Ubuntu or Debian server"
+    fail "Неподдерживаемая ОС: ${PRETTY_NAME:-неизвестно}. Используйте сервер Ubuntu или Debian"
   fi
 }
 
 require_root() {
     if [[ "${EUID}" -ne 0 ]]; then
-        fail "Run this script as root"
+        fail "Запустите этот скрипт от root"
     fi
 }
 
 install_dependencies() {
-    log "Installing dependencies..."
+    log "Установка зависимостей..."
     apt-get update -y >/dev/null
     apt-get install -y nginx python3 >/dev/null
 }
 
 write_api_server() {
-    log "Writing API service..."
+    log "Создание API-сервиса..."
     mkdir -p "$APP_ROOT"
 
     cat > "$API_SCRIPT" <<'PYEOF'
@@ -66,6 +66,30 @@ SERVICE_UNITS = [
     ("hls.service", "hls"),
     ("astra-ui-api.service", "astra-ui-api"),
 ]
+STATE_LABELS = {
+  "active": "активна",
+  "inactive": "неактивна",
+  "failed": "ошибка",
+  "activating": "запускается",
+  "deactivating": "останавливается",
+  "running": "работает",
+  "exited": "завершена",
+  "dead": "остановлена",
+  "loaded": "загружена",
+  "enabled": "включена",
+  "disabled": "выключена",
+  "masked": "замаскирована",
+  "not-found": "не найдена",
+  "unknown": "неизвестно",
+  "online": "онлайн",
+  "degraded": "нестабильно",
+  "offline": "неактивен",
+}
+STREAM_STATUS_TITLES = {
+  "online": "В РАБОТЕ",
+  "degraded": "НЕСТАБИЛЕН",
+  "offline": "НЕ АКТИВЕН",
+}
 
 
 def iso_timestamp(timestamp):
@@ -75,6 +99,10 @@ def iso_timestamp(timestamp):
 def run_command(args):
     result = subprocess.run(args, capture_output=True, text=True)
     return result.returncode, result.stdout.strip(), result.stderr.strip()
+
+
+def label_for_state(value):
+  return STATE_LABELS.get(value, value)
 
 
 def get_service_status(unit_name, label):
@@ -100,9 +128,14 @@ def get_service_status(unit_name, label):
         "name": label,
         "healthy": healthy,
         "loadState": load_state,
+      "loadStateLabel": label_for_state(load_state),
         "activeState": active_state,
+      "activeStateLabel": label_for_state(active_state),
         "subState": sub_state,
+      "subStateLabel": label_for_state(sub_state),
         "unitFileState": unit_file_state,
+      "unitFileStateLabel": label_for_state(unit_file_state),
+      "healthLabel": "Исправна" if healthy else label_for_state(load_state),
         "details": stderr,
         "exitCode": code,
     }
@@ -167,6 +200,8 @@ def collect_stream(services):
 
     return {
         "status": status,
+      "statusLabel": STREAM_STATUS_TITLES.get(status, "НЕИЗВЕСТНО"),
+      "statusBadgeLabel": label_for_state(status),
         "playlistExists": playlist_exists,
         "playlistPath": str(PLAYLIST_PATH),
         "playlistUpdatedAt": iso_timestamp(playlist_mtime) if playlist_mtime else None,
@@ -217,7 +252,7 @@ class Handler(BaseHTTPRequestHandler):
             self._send_json({"status": "ok", "timestamp": time.time()})
             return
 
-        self._send_json({"error": "not found"}, status_code=404)
+        self._send_json({"error": "не найдено"}, status_code=404)
 
     def log_message(self, format, *args):
         return
@@ -236,16 +271,16 @@ PYEOF
 }
 
 write_ui_files() {
-    log "Writing dashboard files..."
+    log "Создание файлов веб-интерфейса..."
     mkdir -p "$UI_ROOT"
 
     cat > "$UI_ROOT/index.html" <<'HTMLEOF'
 <!doctype html>
-<html lang="en">
+<html lang="ru">
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Astra Control Panel</title>
+    <title>Astra Панель управления</title>
     <link rel="stylesheet" href="/styles.css">
   </head>
   <body>
@@ -254,49 +289,49 @@ write_ui_files() {
     <main class="shell">
       <section class="hero panel">
         <div>
-          <p class="eyebrow">Astra Dashboard</p>
-          <h1>Streaming control surface</h1>
-          <p class="hero-copy">Track stream readiness, source files and service health without leaving the browser.</p>
+          <p class="eyebrow">Astra Панель</p>
+          <h1>Управление стримингом</h1>
+          <p class="hero-copy">Следите за состоянием потока, видеофайлами и службами прямо из браузера.</p>
         </div>
         <div class="hero-actions">
-          <button id="refreshButton" class="button" type="button">Refresh now</button>
-          <p id="updatedAt" class="meta">Waiting for first update...</p>
+          <button id="refreshButton" class="button" type="button">Обновить сейчас</button>
+          <p id="updatedAt" class="meta">Ожидание первого обновления...</p>
         </div>
       </section>
 
       <section class="summary-grid">
         <article class="panel metric-card">
-          <p class="metric-label">Stream</p>
+          <p class="metric-label">Поток</p>
           <div class="metric-row">
             <strong id="streamStatus" class="metric-value">--</strong>
-            <span id="streamBadge" class="status-pill neutral">Unknown</span>
+            <span id="streamBadge" class="status-pill neutral">Неизвестно</span>
           </div>
-          <p id="streamMeta" class="meta">Playlist state pending</p>
+          <p id="streamMeta" class="meta">Состояние плейлиста ожидается</p>
         </article>
 
         <article class="panel metric-card">
-          <p class="metric-label">Source files</p>
+          <p class="metric-label">Исходные файлы</p>
           <div class="metric-row">
             <strong id="videoCount" class="metric-value">0</strong>
             <span id="videoSize" class="status-pill neutral">0 B</span>
           </div>
-          <p class="meta">Files in /var/www/video</p>
+          <p class="meta">Файлы в /var/www/video</p>
         </article>
 
         <article class="panel metric-card">
-          <p class="metric-label">Segments</p>
+          <p class="metric-label">Сегменты</p>
           <div class="metric-row">
             <strong id="segmentCount" class="metric-value">0</strong>
-            <span id="playlistBadge" class="status-pill neutral">Playlist missing</span>
+            <span id="playlistBadge" class="status-pill neutral">Плейлист отсутствует</span>
           </div>
-          <p id="playlistMeta" class="meta">No HLS data yet</p>
+          <p id="playlistMeta" class="meta">Данных HLS пока нет</p>
         </article>
 
         <article class="panel metric-card">
-          <p class="metric-label">Services</p>
+          <p class="metric-label">Службы</p>
           <div class="metric-row">
             <strong id="healthyServices" class="metric-value">0/0</strong>
-            <span id="serviceBadge" class="status-pill neutral">Unknown</span>
+            <span id="serviceBadge" class="status-pill neutral">Неизвестно</span>
           </div>
           <p class="meta">nginx, hls, astra-ui-api</p>
         </article>
@@ -305,40 +340,40 @@ write_ui_files() {
       <section class="content-grid">
         <article class="panel">
           <div class="section-head">
-            <h2>Service health</h2>
-            <span class="meta">Live systemd state</span>
+            <h2>Состояние служб</h2>
+            <span class="meta">Текущее состояние systemd</span>
           </div>
           <div id="servicesTable" class="table-shell"></div>
         </article>
 
         <article class="panel">
           <div class="section-head">
-            <h2>Recent videos</h2>
-            <span class="meta">Newest files first</span>
+            <h2>Последние видео</h2>
+            <span class="meta">Сначала новые файлы</span>
           </div>
           <div id="fileList" class="file-list"></div>
         </article>
 
         <article class="panel panel-wide">
           <div class="section-head">
-            <h2>System overview</h2>
-            <span class="meta">Useful runtime details</span>
+            <h2>Обзор системы</h2>
+            <span class="meta">Полезные данные о работе сервиса</span>
           </div>
           <div class="system-grid">
             <div>
-              <p class="metric-label">Playlist path</p>
+              <p class="metric-label">Путь к плейлисту</p>
               <p id="playlistPath" class="mono">/var/www/hls/index.m3u8</p>
             </div>
             <div>
-              <p class="metric-label">Disk free</p>
+              <p class="metric-label">Свободно на диске</p>
               <p id="diskFree" class="mono">--</p>
             </div>
             <div>
-              <p class="metric-label">Disk used</p>
+              <p class="metric-label">Занято на диске</p>
               <p id="diskUsed" class="mono">--</p>
             </div>
             <div>
-              <p class="metric-label">Dashboard API</p>
+              <p class="metric-label">API панели</p>
               <p class="mono">127.0.0.1:9180</p>
             </div>
           </div>
@@ -412,7 +447,7 @@ body {
 }
 
 .shell {
-  width: min(1180px, calc(100% - 2rem));
+  width: min(1280px, calc(100% - 2rem));
   margin: 0 auto;
   padding: 2rem 0 3rem;
 }
@@ -706,7 +741,7 @@ function formatDate(value) {
   if (!value) {
     return "--";
   }
-  return new Date(value).toLocaleString();
+  return new Date(value).toLocaleString("ru-RU");
 }
 
 function toneForStatus(status) {
@@ -738,15 +773,15 @@ function renderServices(services) {
         <p class="meta mono">${service.unit}</p>
       </div>
       <div>
-        <p class="metric-label">Active</p>
-        <p>${service.activeState}</p>
+        <p class="metric-label">Статус</p>
+        <p>${service.activeStateLabel}</p>
       </div>
       <div>
-        <p class="metric-label">Substate</p>
-        <p>${service.subState}</p>
+        <p class="metric-label">Подстатус</p>
+        <p>${service.subStateLabel}</p>
       </div>
       <div>
-        <span class="status-pill ${service.healthy ? "good" : toneForStatus(service.loadState)}">${service.healthy ? "Healthy" : service.loadState}</span>
+        <span class="status-pill ${service.healthy ? "good" : toneForStatus(service.loadState)}">${service.healthLabel}</span>
       </div>
     `;
     servicesTable.appendChild(row);
@@ -760,8 +795,8 @@ function renderFiles(files) {
     empty.className = "file-item";
     empty.innerHTML = `
       <div>
-        <strong>No video files found</strong>
-        <p class="meta">Add mp4 files to /var/www/video</p>
+        <strong>Видеофайлы не найдены</strong>
+        <p class="meta">Добавьте mp4-файлы в /var/www/video</p>
       </div>
       <div class="mono">0 B</div>
       <div class="meta">--</div>
@@ -776,7 +811,7 @@ function renderFiles(files) {
     item.innerHTML = `
       <div>
         <strong>${file.name}</strong>
-        <p class="meta">Source file</p>
+        <p class="meta">Исходный файл</p>
       </div>
       <div class="mono">${formatBytes(file.sizeBytes)}</div>
       <div class="meta">${formatDate(file.modifiedAt)}</div>
@@ -788,11 +823,11 @@ function renderFiles(files) {
 function renderPayload(payload) {
   const healthyCount = payload.services.filter((service) => service.healthy).length;
 
-  streamStatus.textContent = payload.stream.status.toUpperCase();
-  applyPill(streamBadge, payload.stream.status, toneForStatus(payload.stream.status));
+  streamStatus.textContent = payload.stream.statusLabel;
+  applyPill(streamBadge, payload.stream.statusBadgeLabel, toneForStatus(payload.stream.status));
   streamMeta.textContent = payload.stream.playlistUpdatedAt
-    ? `Playlist updated ${formatDate(payload.stream.playlistUpdatedAt)}`
-    : "Playlist not generated yet";
+    ? `Плейлист обновлен: ${formatDate(payload.stream.playlistUpdatedAt)}`
+    : "Плейлист еще не создан";
 
   videoCount.textContent = String(payload.videos.count);
   applyPill(videoSize, formatBytes(payload.videos.totalBytes), "neutral");
@@ -800,22 +835,22 @@ function renderPayload(payload) {
   segmentCount.textContent = String(payload.stream.segmentCount);
   applyPill(
     playlistBadge,
-    payload.stream.playlistExists ? "Playlist ready" : "Playlist missing",
+    payload.stream.playlistExists ? "Плейлист готов" : "Плейлист отсутствует",
     payload.stream.playlistExists ? "good" : "bad"
   );
-  playlistMeta.textContent = payload.stream.directoryExists ? payload.stream.playlistPath : "HLS directory not found";
+  playlistMeta.textContent = payload.stream.directoryExists ? payload.stream.playlistPath : "Каталог HLS не найден";
 
   healthyServices.textContent = `${healthyCount}/${payload.services.length}`;
   applyPill(
     serviceBadge,
-    healthyCount === payload.services.length ? "Healthy" : "Attention",
+    healthyCount === payload.services.length ? "Все в порядке" : "Требуется внимание",
     healthyCount === payload.services.length ? "good" : "warn"
   );
 
   playlistPath.textContent = payload.stream.playlistPath;
   diskFree.textContent = formatBytes(payload.system.disk.freeBytes);
   diskUsed.textContent = formatBytes(payload.system.disk.usedBytes);
-  updatedAt.textContent = `Last update: ${formatDate(payload.generatedAt)}`;
+  updatedAt.textContent = `Последнее обновление: ${formatDate(payload.generatedAt)}`;
 
   renderServices(payload.services);
   renderFiles(payload.videos.recentFiles);
@@ -823,22 +858,22 @@ function renderPayload(payload) {
 
 async function refresh() {
   refreshButton.disabled = true;
-  refreshButton.textContent = "Refreshing...";
+  refreshButton.textContent = "Обновление...";
   try {
     const response = await fetch("/api/status", { cache: "no-store" });
     if (!response.ok) {
-      throw new Error(`Request failed with status ${response.status}`);
+      throw new Error(`Запрос завершился со статусом ${response.status}`);
     }
     const payload = await response.json();
     renderPayload(payload);
   } catch (error) {
-    streamStatus.textContent = "ERROR";
-    applyPill(streamBadge, "Unavailable", "bad");
+    streamStatus.textContent = "ОШИБКА";
+    applyPill(streamBadge, "Недоступно", "bad");
     streamMeta.textContent = error.message;
-    updatedAt.textContent = "Dashboard API is unreachable";
+    updatedAt.textContent = "API панели недоступно";
   } finally {
     refreshButton.disabled = false;
-    refreshButton.textContent = "Refresh now";
+    refreshButton.textContent = "Обновить сейчас";
   }
 }
 
@@ -849,10 +884,10 @@ JSEOF
 }
 
 write_service_unit() {
-    log "Writing systemd unit..."
+  log "Создание systemd-юнита..."
     cat > "/etc/systemd/system/$API_SERVICE" <<EOF
 [Unit]
-Description=Astra UI API
+Description=Astra API веб-интерфейса
 After=network.target
 
 [Service]
@@ -868,7 +903,7 @@ EOF
 }
 
 write_nginx_site() {
-    log "Writing nginx site..."
+  log "Создание конфигурации nginx..."
     cat > "$NGINX_SITE" <<EOF
 server {
     listen $UI_PORT;
@@ -902,7 +937,7 @@ EOF
 }
 
 enable_services() {
-    log "Enabling services..."
+  log "Включение и запуск служб..."
     systemctl daemon-reload
     systemctl enable --now astra-ui-api >/dev/null
     nginx -t >/dev/null
@@ -914,9 +949,9 @@ print_summary() {
     local host_ip
     host_ip=$(hostname -I | awk '{print $1}')
     echo
-    log "UI installation complete"
-    echo "Dashboard: http://$host_ip:$UI_PORT"
-    echo "API health: http://$host_ip:$UI_PORT/api/health"
+  log "Установка веб-интерфейса завершена"
+  echo "Панель управления: http://$host_ip:$UI_PORT"
+  echo "Проверка API: http://$host_ip:$UI_PORT/api/health"
 }
 
 main() {
