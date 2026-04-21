@@ -63,8 +63,8 @@ ask_swap_size() {
     echo "4) 8 GB"
 
     while true; do
-        read -rp "> [4]: " size_choice
-        size_choice=${size_choice:-4}
+        read -rp "> [3]: " size_choice
+        size_choice=${size_choice:-3}
 
         case "$size_choice" in
             1) SWAP_SIZE="1G"; break ;;
@@ -88,6 +88,7 @@ install_package() {
 }
 
 install_packages() {
+    echo
     log "Обновление системы..."
     apt-get update -y >/dev/null
     progress 1
@@ -100,6 +101,7 @@ install_packages() {
     install_package ffmpeg
     install_package inotify-tools
     progress 2
+    echo
 }
 
 setup_swap() {
@@ -124,7 +126,7 @@ setup_swap() {
 
 create_dirs() {
     log "Создание директорий..."
-    mkdir -p /var/www/video /var/www/hls/file-tv
+    mkdir -p /var/www/video /var/www/hls
 }
 
 create_scripts() {
@@ -153,7 +155,7 @@ EOF
 set -euo pipefail
 
 VIDEO_DIR="/var/www/video"
-HLS_DIR="/var/www/hls/file-tv"
+HLS_DIR="/var/www/hls"
 PLAYLIST="/tmp/playlist.txt"
 LOCK_FILE="/tmp/run_hls.lock"
 
@@ -261,7 +263,7 @@ EOF
 main() {
     clear
     echo "===================================="
-    echo "   HLS Streaming Installer 🚀"
+    echo "      HLS Streaming Установка"
     echo "===================================="
 
     ask_nginx
@@ -282,19 +284,19 @@ main() {
 
     echo
     echo "===================================="
-    log "УСТАНОВКА ЗАВЕРШЕНА ✅"
+    log "УСТАНОВКА ЗАВЕРШЕНА!"
     echo "===================================="
     echo
     if [[ "${INSTALL_NGINX:-1}" -eq 1 ]]; then
-        echo "📺 Поток доступен:"
-        echo "http://$(hostname -I | awk '{print $1}')/file-tv/index.m3u8"
+        echo "Поток доступен по адресу:"
+        echo "http://$(hostname -I | awk '{print $1}')/index.m3u8"
         echo
     else
         warn "nginx не установлен, HTTP-доступ к потоку не настроен"
         echo
     fi
     echo
-    echo "📂 Кидай видео сюда:"
+    echo "Видеофайлы добавлять в директорию:"
     echo "/var/www/video"
 }
 
