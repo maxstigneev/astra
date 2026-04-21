@@ -39,6 +39,11 @@ ask_swap() {
 }
 
 ask_nginx() {
+    if dpkg -s nginx >/dev/null 2>&1; then
+        INSTALL_NGINX=1
+        return
+    fi
+
     echo
     echo "Установить nginx?"
     echo "1) Да"
