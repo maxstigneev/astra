@@ -15,7 +15,6 @@
 ```bash
 curl -fsSL https://raw.githubusercontent.com/maxstigneev/astra/main/install.sh -o install.sh
 chmod +x install.sh
-chmod +x install-ui.sh
 sudo ./install.sh
 ```
 
