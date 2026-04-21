@@ -232,21 +232,6 @@ def build_payload():
     }
 
 
-    def delete_source_files():
-      deleted = []
-      if not VIDEO_DIR.exists():
-        return {"deletedCount": 0, "deletedFiles": deleted}
-
-      for path in VIDEO_DIR.iterdir():
-        if not path.is_file():
-          continue
-
-        path.unlink()
-        deleted.append(path.name)
-
-      return {"deletedCount": len(deleted), "deletedFiles": deleted}
-
-
 class Handler(BaseHTTPRequestHandler):
     def _send_json(self, payload, status_code=200):
         encoded = json.dumps(payload).encode("utf-8")
@@ -268,19 +253,6 @@ class Handler(BaseHTTPRequestHandler):
             return
 
         self._send_json({"error": "не найдено"}, status_code=404)
-
-  def do_POST(self):
-    path = urlparse(self.path).path
-    if path == "/videos/delete-all":
-      result = delete_source_files()
-      self._send_json({
-        "status": "ok",
-        "message": "Исходные файлы удалены",
-        **result,
-      })
-      return
-
-    self._send_json({"error": "не найдено"}, status_code=404)
 
     def log_message(self, format, *args):
         return
@@ -309,9 +281,6 @@ write_ui_files() {
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Astra Панель управления</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/styles.css">
   </head>
   <body>
@@ -346,7 +315,6 @@ write_ui_files() {
             <strong id="videoCount" class="metric-value">0</strong>
             <span id="videoSize" class="status-pill neutral">0 B</span>
           </div>
-          <button id="deleteAllButton" class="button button-danger" type="button">Удалить все</button>
           <p class="meta">Файлы в /var/www/video</p>
         </article>
 
@@ -410,27 +378,6 @@ write_ui_files() {
             </div>
           </div>
         </article>
-
-        <article class="panel panel-wide">
-          <div class="section-head">
-            <h2>Ссылки</h2>
-            <span class="meta">Быстрый доступ к потоку и API</span>
-          </div>
-          <div class="link-grid">
-            <div class="link-card">
-              <p class="metric-label">Поток</p>
-              <a id="streamLink" class="mono link-anchor" href="#">Загрузка...</a>
-            </div>
-            <div class="link-card">
-              <p class="metric-label">API статуса</p>
-              <a id="apiStatusLink" class="mono link-anchor" href="#">Загрузка...</a>
-            </div>
-            <div class="link-card">
-              <p class="metric-label">API проверки</p>
-              <a id="apiHealthLink" class="mono link-anchor" href="#">Загрузка...</a>
-            </div>
-          </div>
-        </article>
       </section>
     </main>
     <script src="/app.js" defer></script>
@@ -462,7 +409,7 @@ html,
 body {
   margin: 0;
   min-height: 100%;
-  font-family: "Roboto", "Segoe UI", "Helvetica Neue", sans-serif;
+  font-family: "Avenir Next", "Segoe UI", "Helvetica Neue", sans-serif;
   background:
     radial-gradient(circle at top left, rgba(34, 197, 94, 0.18), transparent 30%),
     radial-gradient(circle at top right, rgba(94, 234, 212, 0.14), transparent 32%),
@@ -536,13 +483,13 @@ p {
 }
 
 h1 {
-  font-size: clamp(1.7rem, 4vw, 3.2rem);
-  line-height: 1.02;
+  font-size: clamp(2rem, 5vw, 4rem);
+  line-height: 0.98;
   max-width: 11ch;
 }
 
 h2 {
-  font-size: 1.02rem;
+  font-size: 1.2rem;
 }
 
 .hero-copy,
@@ -576,21 +523,9 @@ h2 {
   box-shadow: 0 12px 30px rgba(34, 197, 94, 0.24);
 }
 
-.button-danger {
-  width: 100%;
-  margin-bottom: 0.8rem;
-  background: linear-gradient(135deg, #fb7185, #ef4444);
-  color: #fff5f7;
-  box-shadow: 0 12px 30px rgba(239, 68, 68, 0.24);
-}
-
 .button:hover {
   transform: translateY(-1px);
   box-shadow: 0 18px 40px rgba(34, 197, 94, 0.28);
-}
-
-.button-danger:hover {
-  box-shadow: 0 18px 40px rgba(239, 68, 68, 0.28);
 }
 
 .summary-grid,
@@ -729,28 +664,6 @@ h2 {
   gap: 1rem;
 }
 
-.link-grid {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 1rem;
-}
-
-.link-card {
-  padding: 1rem;
-  border-radius: 18px;
-  background: var(--bg-soft);
-  border: 1px solid rgba(160, 198, 255, 0.08);
-}
-
-.link-anchor {
-  color: #bffaf0;
-  text-decoration: none;
-}
-
-.link-anchor:hover {
-  text-decoration: underline;
-}
-
 @keyframes rise-in {
   from {
     opacity: 0;
@@ -779,7 +692,6 @@ h2 {
   .content-grid,
   .summary-grid,
   .system-grid,
-  .link-grid,
   .table-row,
   .file-item {
     grid-template-columns: 1fr;
@@ -806,13 +718,9 @@ const healthyServices = document.getElementById("healthyServices");
 const serviceBadge = document.getElementById("serviceBadge");
 const servicesTable = document.getElementById("servicesTable");
 const fileList = document.getElementById("fileList");
-const deleteAllButton = document.getElementById("deleteAllButton");
 const playlistPath = document.getElementById("playlistPath");
 const diskFree = document.getElementById("diskFree");
 const diskUsed = document.getElementById("diskUsed");
-const streamLink = document.getElementById("streamLink");
-const apiStatusLink = document.getElementById("apiStatusLink");
-const apiHealthLink = document.getElementById("apiHealthLink");
 
 function formatBytes(bytes) {
   if (!Number.isFinite(bytes) || bytes <= 0) {
@@ -852,22 +760,6 @@ function toneForStatus(status) {
 function applyPill(node, label, tone) {
   node.textContent = label;
   node.className = `status-pill ${tone}`;
-}
-
-function updateLinks() {
-  const baseUrl = `${window.location.protocol}//${window.location.hostname}`;
-  const streamUrl = `${baseUrl}/index.m3u8`;
-  const statusUrl = `${window.location.origin}/api/status`;
-  const healthUrl = `${window.location.origin}/api/health`;
-
-  streamLink.href = streamUrl;
-  streamLink.textContent = streamUrl;
-
-  apiStatusLink.href = statusUrl;
-  apiStatusLink.textContent = statusUrl;
-
-  apiHealthLink.href = healthUrl;
-  apiHealthLink.textContent = healthUrl;
 }
 
 function renderServices(services) {
@@ -966,7 +858,6 @@ function renderPayload(payload) {
 
 async function refresh() {
   refreshButton.disabled = true;
-  deleteAllButton.disabled = true;
   refreshButton.textContent = "Обновление...";
   try {
     const response = await fetch("/api/status", { cache: "no-store" });
@@ -982,44 +873,11 @@ async function refresh() {
     updatedAt.textContent = "API панели недоступно";
   } finally {
     refreshButton.disabled = false;
-    deleteAllButton.disabled = false;
     refreshButton.textContent = "Обновить сейчас";
   }
 }
 
-async function deleteAllFiles() {
-  const confirmed = window.confirm("Удалить все файлы из /var/www/video?");
-  if (!confirmed) {
-    return;
-  }
-
-  deleteAllButton.disabled = true;
-  deleteAllButton.textContent = "Удаление...";
-
-  try {
-    const response = await fetch("/api/videos/delete-all", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-    });
-
-    if (!response.ok) {
-      throw new Error(`Удаление завершилось со статусом ${response.status}`);
-    }
-
-    await refresh();
-  } catch (error) {
-    streamMeta.textContent = error.message;
-  } finally {
-    deleteAllButton.disabled = false;
-    deleteAllButton.textContent = "Удалить все";
-  }
-}
-
 refreshButton.addEventListener("click", refresh);
-deleteAllButton.addEventListener("click", deleteAllFiles);
-updateLinks();
 refresh();
 window.setInterval(refresh, 5000);
 JSEOF
@@ -1067,13 +925,6 @@ server {
         proxy_pass http://127.0.0.1:$API_PORT/health;
         proxy_http_version 1.1;
         proxy_set_header Host \$host;
-    }
-
-    location = /api/videos/delete-all {
-      proxy_pass http://127.0.0.1:$API_PORT/videos/delete-all;
-      proxy_http_version 1.1;
-      proxy_set_header Host \$host;
-      proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
     }
 
     location / {

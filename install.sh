@@ -1,8 +1,6 @@
 #!/bin/bash
 set -euo pipefail
 
-UI_INSTALL_URL="https://raw.githubusercontent.com/maxstigneev/astra/main/install-ui.sh"
-
 # ---------- UI ----------
 
 log() { echo -e "\e[32m[INFO]\e[0m $1"; }
@@ -58,22 +56,6 @@ ask_nginx() {
         1) INSTALL_NGINX=1 ;;
         2) INSTALL_NGINX=0 ;;
         *) warn "Неверный выбор. Использую 'Да'"; INSTALL_NGINX=1 ;;
-    esac
-}
-
-ask_ui_dashboard() {
-    echo
-    echo "Установить UI Dashboard?"
-    echo "1) Да"
-    echo "2) Нет"
-
-    read -rp "> [1]: " choice
-    choice=${choice:-1}
-
-    case "$choice" in
-        1) INSTALL_UI_DASHBOARD=1 ;;
-        2) INSTALL_UI_DASHBOARD=0 ;;
-        *) warn "Неверный выбор. Использую 'Да'"; INSTALL_UI_DASHBOARD=1 ;;
     esac
 }
 
@@ -287,32 +269,6 @@ EOF
     systemctl start hls
 }
 
-install_ui_dashboard() {
-    local ui_script
-
-    if [[ "${INSTALL_UI_DASHBOARD:-1}" -ne 1 ]]; then
-        return
-    fi
-
-    if ! command -v curl >/dev/null 2>&1 && ! command -v wget >/dev/null 2>&1; then
-        apt-get install -y curl >/dev/null
-        log "curl установлен"
-    fi
-
-    log "Установка UI Dashboard..."
-    ui_script=$(mktemp /tmp/install-ui.XXXXXX.sh)
-
-    if command -v curl >/dev/null 2>&1; then
-        curl -fsSL "$UI_INSTALL_URL" -o "$ui_script"
-    else
-        wget -qO "$ui_script" "$UI_INSTALL_URL"
-    fi
-
-    chmod +x "$ui_script"
-    bash "$ui_script"
-    rm -f "$ui_script"
-}
-
 # ---------- MAIN ----------
 
 main() {
@@ -322,7 +278,6 @@ main() {
     echo "===================================="
 
     ask_nginx
-    ask_ui_dashboard
     install_packages
 
     if ! swapon --show | grep -q '/swapfile'; then
@@ -337,7 +292,6 @@ main() {
     create_scripts
     setup_nginx
     setup_service
-    install_ui_dashboard
 
     echo
     echo "===================================="
@@ -352,13 +306,6 @@ main() {
         warn "nginx не установлен, HTTP-доступ к потоку не настроен"
         echo
     fi
-
-    if [[ "${INSTALL_UI_DASHBOARD:-1}" -eq 1 ]]; then
-        echo "UI Dashboard доступен по адресу:"
-        echo "http://$(hostname -I | awk '{print $1}'):8080"
-        echo
-    fi
-
     echo "Видеофайлы добавлять в директорию:"
     echo "/var/www/video"
 }
