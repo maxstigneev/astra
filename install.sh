@@ -13,7 +13,7 @@ progress() {
     for ((i=1;i<=steps;i++)); do
         printf "\r["
         printf "%0.s#" $(seq 1 $i)
-        printf "%0.s." $(seq $i $steps)
+        printf "%0.s." $(seq 1 $((steps - i)))
         printf "] %d%%" $((i*100/steps))
         sleep "$delay"
     done
