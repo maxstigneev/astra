@@ -3,8 +3,8 @@ set -euo pipefail
 
 # ---------- UI ----------
 
-log() { echo -e "\e[32m[INFO]\e[0m $1"; }
-warn() { echo -e "\e[33m[WARN]\e[0m $1"; }
+log() { echo -e "\e[32m[INFO]\e[0m ${1-}"; }
+warn() { echo -e "\e[33m[WARN]\e[0m ${1-}"; }
 
 progress() {
     local duration=$1
@@ -91,10 +91,10 @@ install_package() {
 
 install_packages() {
     log "Обновление системы..."
-    log
+    echo
     apt-get update -y >/dev/null
     progress 1
-    log
+    echo
 
     log "Установка пакетов..."
 
