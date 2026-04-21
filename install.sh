@@ -90,8 +90,10 @@ install_package() {
 install_packages() {
     echo
     log "Обновление системы..."
+    echo
     apt-get update -y >/dev/null
     progress 1
+    echo
 
     log "Установка пакетов..."
     if [[ "${INSTALL_NGINX:-1}" -eq 1 ]]; then
