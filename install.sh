@@ -38,6 +38,22 @@ ask_swap() {
     esac
 }
 
+ask_nginx() {
+    echo
+    echo "Установить nginx?"
+    echo "1) Да"
+    echo "2) Нет"
+
+    read -rp "> [1]: " choice
+    choice=${choice:-1}
+
+    case "$choice" in
+        1) INSTALL_NGINX=1 ;;
+        2) INSTALL_NGINX=0 ;;
+        *) warn "Неверный выбор. Использую 'Да'"; INSTALL_NGINX=1 ;;
+    esac
+}
+
 ask_swap_size() {
     echo
     echo "Выберите размер swap:"
@@ -64,13 +80,25 @@ ask_swap_size() {
 
 # ---------- ACTIONS ----------
 
+install_package() {
+    local package_name=$1
+
+    apt-get install -y "$package_name" >/dev/null
+    log "$package_name установлен"
+}
+
 install_packages() {
     log "Обновление системы..."
-    apt update -y >/dev/null
+    apt-get update -y >/dev/null
     progress 1
 
     log "Установка пакетов..."
-    apt install -y nginx ffmpeg inotify-tools >/dev/null
+    if [[ "${INSTALL_NGINX:-1}" -eq 1 ]]; then
+        install_package nginx
+    fi
+
+    install_package ffmpeg
+    install_package inotify-tools
     progress 2
 }
 
@@ -170,6 +198,11 @@ EOF
 }
 
 setup_nginx() {
+    if [[ "${INSTALL_NGINX:-1}" -ne 1 ]]; then
+        warn "Настройка nginx пропущена"
+        return
+    fi
+
     log "Настройка nginx..."
 
     cat > /etc/nginx/sites-available/hls << 'EOF'
@@ -231,6 +264,7 @@ main() {
     echo "   HLS Streaming Installer 🚀"
     echo "===================================="
 
+    ask_nginx
     install_packages
 
     if ! swapon --show | grep -q '/swapfile'; then
@@ -251,8 +285,14 @@ main() {
     log "УСТАНОВКА ЗАВЕРШЕНА ✅"
     echo "===================================="
     echo
-    echo "📺 Поток доступен:"
-    echo "http://$(hostname -I | awk '{print $1}')/file-tv/index.m3u8"
+    if [[ "${INSTALL_NGINX:-1}" -eq 1 ]]; then
+        echo "📺 Поток доступен:"
+        echo "http://$(hostname -I | awk '{print $1}')/file-tv/index.m3u8"
+        echo
+    else
+        warn "nginx не установлен, HTTP-доступ к потоку не настроен"
+        echo
+    fi
     echo
     echo "📂 Кидай видео сюда:"
     echo "/var/www/video"
