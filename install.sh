@@ -83,7 +83,41 @@ ask_swap_size() {
     log "Выбран swap: $SWAP_SIZE"
 }
 
+ask_ui_install() {
+    echo
+    echo "Установить веб-интерфейс для мониторинга?"
+    echo "1) Да"
+    echo "2) Нет"
+
+    read -rp "> [1]: " choice
+    choice=${choice:-1}
+
+    case "$choice" in
+        1) download_ui; install_ui ;;
+        2) warn "Установка UI пропущена" ;;
+        *) warn "Неверный выбор. Использую 'Да'"; download_ui; install_ui ;;
+    esac
+}
+
 # ---------- ACTIONS ----------
+
+download_ui() {
+    curl -fsSL https://raw.githubusercontent.com/maxstigneev/astra/main/install-ui.sh -o install-ui.sh
+    chmod +x install-ui.sh
+}
+
+install_ui() {
+    # Проверяем, если UI уже установлен - удаляем папку UI
+    if [ -d "/var/www/ui" ]; then
+        log "Удаление старой версии UI..."
+        rm -rf /var/www/ui
+    fi
+    echo
+    log "Установка UI..."
+    progress 1
+    echo
+    bash ./install-ui.sh
+}
 
 install_package() {
     local package_name=$1
@@ -277,9 +311,6 @@ main() {
     echo "      HLS Streaming Установка"
     echo "===================================="
 
-    ask_nginx
-    install_packages
-
     if ! swapon --show | grep -q '/swapfile'; then
         ask_swap
     fi
@@ -288,10 +319,15 @@ main() {
         setup_swap
     fi
 
+    ask_nginx
+    install_packages
+
     create_dirs
     create_scripts
     setup_nginx
     setup_service
+
+    ask_ui_install
 
     echo
     echo "===================================="

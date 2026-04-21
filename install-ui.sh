@@ -5,12 +5,12 @@ log() { echo -e "\e[32m[INFO]\e[0m ${1-}"; }
 warn() { echo -e "\e[33m[WARN]\e[0m ${1-}"; }
 fail() { echo -e "\e[31m[ERROR]\e[0m ${1-}" >&2; exit 1; }
 
-UI_ROOT="/var/www/astra-ui"
-APP_ROOT="/opt/astra-ui"
+UI_ROOT="/var/www/ui"
+APP_ROOT="/opt/ui"
 API_SCRIPT="$APP_ROOT/api_server.py"
-API_SERVICE="astra-ui-api.service"
-NGINX_SITE="/etc/nginx/sites-available/astra-ui"
-NGINX_LINK="/etc/nginx/sites-enabled/astra-ui"
+API_SERVICE="ui-api.service"
+NGINX_SITE="/etc/nginx/sites-available/ui"
+NGINX_LINK="/etc/nginx/sites-enabled/ui"
 API_PORT="9180"
 UI_PORT="8080"
 
@@ -64,7 +64,7 @@ API_PORT = 9180
 SERVICE_UNITS = [
     ("nginx.service", "nginx"),
     ("hls.service", "hls"),
-    ("astra-ui-api.service", "astra-ui-api"),
+    ("ui-api.service", "ui-api"),
 ]
 STATE_LABELS = {
   "active": "активна",
@@ -280,7 +280,10 @@ write_ui_files() {
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Astra Панель управления</title>
+    <title>MOOVI Playout Панель управления</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/styles.css">
   </head>
   <body>
@@ -289,9 +292,9 @@ write_ui_files() {
     <main class="shell">
       <section class="hero panel">
         <div>
-          <p class="eyebrow">Astra Панель</p>
-          <h1>Управление стримингом</h1>
-          <p class="hero-copy">Следите за состоянием потока, видеофайлами и службами прямо из браузера.</p>
+          <p class="eyebrow">MOOVI Playout</p>
+          <h2>Управление сервисом</h2>
+          <p class="hero-copy">Состояние потока, видеофайлов и служб</p>
         </div>
         <div class="hero-actions">
           <button id="refreshButton" class="button" type="button">Обновить сейчас</button>
@@ -315,7 +318,7 @@ write_ui_files() {
             <strong id="videoCount" class="metric-value">0</strong>
             <span id="videoSize" class="status-pill neutral">0 B</span>
           </div>
-          <p class="meta">Файлы в /var/www/video</p>
+          <p class="meta">/var/www/video</p>
         </article>
 
         <article class="panel metric-card">
@@ -333,7 +336,7 @@ write_ui_files() {
             <strong id="healthyServices" class="metric-value">0/0</strong>
             <span id="serviceBadge" class="status-pill neutral">Неизвестно</span>
           </div>
-          <p class="meta">nginx, hls, astra-ui-api</p>
+          <p class="meta">nginx, hls, ui-api</p>
         </article>
       </section>
 
@@ -409,7 +412,7 @@ html,
 body {
   margin: 0;
   min-height: 100%;
-  font-family: "Avenir Next", "Segoe UI", "Helvetica Neue", sans-serif;
+  font-family: "Roboto", "Segoe UI", "Helvetica Neue", sans-serif;
   background:
     radial-gradient(circle at top left, rgba(34, 197, 94, 0.18), transparent 30%),
     radial-gradient(circle at top right, rgba(94, 234, 212, 0.14), transparent 32%),
@@ -548,7 +551,9 @@ h2 {
 }
 
 .metric-card {
+  position: relative;
   padding: 1.3rem;
+  padding-top: 4.2rem;
   animation: rise-in 0.9s ease both;
 }
 
@@ -574,10 +579,16 @@ h2 {
 
 .metric-row {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
+  justify-content: flex-start;
+  align-items: flex-end;
   gap: 1rem;
   margin-bottom: 0.8rem;
+}
+
+.metric-card .status-pill {
+  position: absolute;
+  top: 1.3rem;
+  right: 1.3rem;
 }
 
 .metric-value {
@@ -939,7 +950,7 @@ EOF
 enable_services() {
   log "Включение и запуск служб..."
     systemctl daemon-reload
-    systemctl enable --now astra-ui-api >/dev/null
+    systemctl enable --now ui-api >/dev/null
     nginx -t >/dev/null
     systemctl enable nginx >/dev/null
     systemctl restart nginx
