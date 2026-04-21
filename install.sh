@@ -92,6 +92,7 @@ install_packages() {
     log "Обновление системы..."
     echo
     apt-get update -y >/dev/null
+    echo
     progress 1
     echo
 
@@ -102,6 +103,7 @@ install_packages() {
 
     install_package ffmpeg
     install_package inotify-tools
+    echo
     progress 2
     echo
 }
@@ -208,6 +210,7 @@ setup_nginx() {
     fi
 
     log "Настройка nginx..."
+    echo
 
     cat > /etc/nginx/sites-available/hls << 'EOF'
 server {
@@ -236,6 +239,7 @@ EOF
 
     nginx -t
     systemctl restart nginx
+    echo
 }
 
 setup_service() {
@@ -286,7 +290,7 @@ main() {
 
     echo
     echo "===================================="
-    log "УСТАНОВКА ЗАВЕРШЕНА!"
+    log "       УСТАНОВКА ЗАВЕРШЕНА!"
     echo "===================================="
     echo
     if [[ "${INSTALL_NGINX:-1}" -eq 1 ]]; then
