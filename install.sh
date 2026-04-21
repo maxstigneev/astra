@@ -12,8 +12,8 @@ progress() {
     local delay=$(awk "BEGIN {print $duration/$steps}")
     for ((i=1;i<=steps;i++)); do
         printf "\r["
-        printf "%*s" "$i" "" | tr ' ' '#'
-        printf "%*s" "$((steps - i))" "" | tr ' ' '.'
+        printf "%0.s#" $(seq 1 $i)
+        printf "%0.s." $(seq $i $steps)
         printf "] %d%%" $((i*100/steps))
         sleep "$delay"
     done
