@@ -3,8 +3,8 @@ set -euo pipefail
 
 # ---------- UI ----------
 
-log() { echo -e "\e[32m[INFO]\e[0m ${1-}"; }
-warn() { echo -e "\e[33m[WARN]\e[0m ${1-}"; }
+log() { echo -e "\e[32m[INFO]\e[0m $1"; }
+warn() { echo -e "\e[33m[WARN]\e[0m $1"; }
 
 progress() {
     local duration=$1
@@ -52,8 +52,6 @@ ask_nginx() {
         2) INSTALL_NGINX=0 ;;
         *) warn "Неверный выбор. Использую 'Да'"; INSTALL_NGINX=1 ;;
     esac
-
-    echo
 }
 
 ask_swap_size() {
@@ -91,21 +89,17 @@ install_package() {
 
 install_packages() {
     log "Обновление системы..."
-    echo
     apt-get update -y >/dev/null
     progress 1
-    echo
 
     log "Установка пакетов..."
-
-    install_package ffmpeg
-    install_package inotify-tools
-    echo
-    progress 2
-    
     if [[ "${INSTALL_NGINX:-1}" -eq 1 ]]; then
         install_package nginx
     fi
+
+    install_package ffmpeg
+    install_package inotify-tools
+    progress 2
 }
 
 setup_swap() {
