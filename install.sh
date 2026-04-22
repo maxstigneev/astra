@@ -108,12 +108,14 @@ download_ui() {
 
 install_ui() {
     # Проверяем, если UI уже установлен - удаляем папку UI
+    echo
     if [ -d "/var/www/ui" ]; then
+        
         log "Удаление старой версии UI..."
         rm -rf /var/www/ui
     fi
-    echo
     log "Установка UI..."
+    echo
     progress 1
     echo
     bash ./install-ui.sh

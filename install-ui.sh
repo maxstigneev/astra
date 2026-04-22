@@ -950,6 +950,7 @@ EOF
 
 enable_services() {
   log "Включение и запуск служб..."
+  echo
     systemctl daemon-reload
     systemctl enable --now ui-api >/dev/null
     nginx -t >/dev/null
@@ -961,7 +962,8 @@ print_summary() {
     local host_ip
     host_ip=$(hostname -I | awk '{print $1}')
     echo
-  log "Установка веб-интерфейса завершена"
+  log "Веб-интерфейс установлен"
+  echo
   echo "Панель управления: http://$host_ip:$UI_PORT"
   echo "Проверка API: http://$host_ip:$UI_PORT/api/health"
 }
