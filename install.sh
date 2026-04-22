@@ -267,6 +267,7 @@ build_hls() {
     fi
 
     ffmpeg -hide_banner -loglevel warning -nostdin -y \
+        -re \
         -stream_loop -1 \
         -f concat -safe 0 -i "$PLAYLIST" \
         -map 0:v:0 -map 0:a:0? \
@@ -275,10 +276,9 @@ build_hls() {
         -af aresample=async=1:first_pts=0 \
         -f hls \
         -hls_time 4 \
-        -hls_list_size 0 \
-        -hls_playlist_type vod \
-        -hls_flags independent_segments+temp_file \
-        -hls_segment_filename "$HLS_DIR/segment_%03d.ts" \
+        -hls_list_size 6 \
+        -hls_flags delete_segments+append_list+omit_endlist+independent_segments+temp_file \
+        -hls_segment_filename "$HLS_DIR/segment_%09d.ts" \
         "$HLS_DIR/index.m3u8"
 }
 
