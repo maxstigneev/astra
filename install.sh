@@ -252,11 +252,28 @@ VIDEO_DIR="/var/www/video"
 HLS_DIR="/var/www/hls"
 PLAYLIST="/tmp/playlist.txt"
 LOCK_FILE="/tmp/run_hls.lock"
+PID_FILE="/tmp/run_hls.pid"
 
 mkdir -p "$HLS_DIR"
 
+stop_hls() {
+    if [[ ! -f "$PID_FILE" ]]; then
+        return
+    fi
+
+    local ffmpeg_pid
+    ffmpeg_pid=$(cat "$PID_FILE")
+
+    if kill -0 "$ffmpeg_pid" 2>/dev/null; then
+        kill "$ffmpeg_pid" 2>/dev/null || true
+        wait "$ffmpeg_pid" 2>/dev/null || true
+    fi
+
+    rm -f "$PID_FILE"
+}
+
 build_hls() {
-    flock -n 9 || exit 0
+    stop_hls
 
     /usr/local/bin/build_playlist.sh
 
@@ -279,10 +296,15 @@ build_hls() {
         -hls_list_size 6 \
         -hls_flags delete_segments+append_list+omit_endlist+independent_segments+temp_file \
         -hls_segment_filename "$HLS_DIR/segment_%09d.ts" \
-        "$HLS_DIR/index.m3u8"
+        "$HLS_DIR/index.m3u8" &
+
+    echo $! > "$PID_FILE"
 }
 
 exec 9>"$LOCK_FILE"
+flock -n 9 || exit 0
+trap 'stop_hls' EXIT INT TERM
+
 build_hls
 
 while inotifywait -q -e close_write,moved_to,delete "$VIDEO_DIR"; do
