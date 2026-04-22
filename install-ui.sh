@@ -293,7 +293,7 @@ write_ui_files() {
       <section class="hero panel">
         <div>
           <p class="eyebrow">MOOVI Playout</p>
-          <h2>Управление сервисом</h2>
+          <h1>Управление сервисом</h1>
           <p class="hero-copy">Состояние потока, видеофайлов и служб</p>
         </div>
         <div class="hero-actions">
