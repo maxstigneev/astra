@@ -16,6 +16,9 @@ const deleteAllButton = document.getElementById("deleteAllButton");
 const playlistPath = document.getElementById("playlistPath");
 const diskFree = document.getElementById("diskFree");
 const diskUsed = document.getElementById("diskUsed");
+const streamLink = document.getElementById("streamLink");
+const apiStatusLink = document.getElementById("apiStatusLink");
+const apiHealthLink = document.getElementById("apiHealthLink");
 
 function formatBytes(bytes) {
 	if (!Number.isFinite(bytes) || bytes <= 0) {
@@ -55,6 +58,19 @@ function toneForStatus(status) {
 function applyPill(node, label, tone) {
 	node.textContent = label;
 	node.className = `status-pill ${tone}`;
+}
+
+function updateLinks() {
+	const baseUrl = `${window.location.protocol}//${window.location.hostname}`;
+
+	streamLink.href = `${baseUrl}/index.m3u8`;
+	streamLink.textContent = `${baseUrl}/index.m3u8`;
+
+	apiStatusLink.href = `${baseUrl}/api/status`;
+	apiStatusLink.textContent = `${baseUrl}/api/status`;
+
+	apiHealthLink.href = `${baseUrl}/api/health`;
+	apiHealthLink.textContent = `${baseUrl}/api/health`;
 }
 
 function renderServices(services) {
@@ -154,7 +170,7 @@ function renderPayload(payload) {
 async function refresh() {
 	refreshButton.disabled = true;
 	deleteAllButton.disabled = true;
-	refreshButton.textContent = "Обновление...";
+	// refreshButton.textContent = "Обновление...";
 	try {
 		const response = await fetch("/api/status", { cache: "no-store" });
 		if (!response.ok) {
@@ -206,5 +222,6 @@ async function deleteAllFiles() {
 
 refreshButton.addEventListener("click", refresh);
 deleteAllButton.addEventListener("click", deleteAllFiles);
+updateLinks();
 refresh();
 window.setInterval(refresh, 5000);
