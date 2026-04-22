@@ -38,14 +38,19 @@ require_root() {
 install_dependencies() {
     log "Установка зависимостей..."
     apt-get update -y >/dev/null
-    apt-get install -y nginx python3 >/dev/null
+  apt-get install -y curl nginx python3 >/dev/null
 }
 
 download_ui() {
-    curl -fsSL https://raw.githubusercontent.com/maxstigneev/astra/main/ui/api_server.py -o "$APP_ROOT/api_server.py"
-    curl -fsSL https://raw.githubusercontent.com/maxstigneev/astra/main/ui/app.js -o "$APP_ROOT/app.js"
-    curl -fsSL https://raw.githubusercontent.com/maxstigneev/astra/main/ui/index.html -o "$APP_ROOT/index.html"
-    curl -fsSL https://raw.githubusercontent.com/maxstigneev/astra/main/ui/styles.css -o "$APP_ROOT/styles.css"
+  log "Загрузка файлов UI..."
+  mkdir -p "$APP_ROOT" "$UI_ROOT"
+
+  curl -fsSL https://raw.githubusercontent.com/maxstigneev/astra/main/ui/api_server.py -o "$API_SCRIPT"
+  curl -fsSL https://raw.githubusercontent.com/maxstigneev/astra/main/ui/app.js -o "$UI_ROOT/app.js"
+  curl -fsSL https://raw.githubusercontent.com/maxstigneev/astra/main/ui/index.html -o "$UI_ROOT/index.html"
+  curl -fsSL https://raw.githubusercontent.com/maxstigneev/astra/main/ui/styles.css -o "$UI_ROOT/styles.css"
+
+  chmod +x "$API_SCRIPT"
 }
 
 write_api_server() {
