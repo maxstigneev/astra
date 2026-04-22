@@ -256,6 +256,10 @@ PID_FILE="/tmp/run_hls.pid"
 
 mkdir -p "$HLS_DIR"
 
+cleanup_hls() {
+    rm -f "$HLS_DIR"/*.ts "$HLS_DIR"/*.m3u8
+}
+
 stop_hls() {
     if [[ ! -f "$PID_FILE" ]]; then
         return
@@ -277,8 +281,6 @@ build_hls() {
 
     /usr/local/bin/build_playlist.sh
 
-    rm -f "$HLS_DIR"/*.ts "$HLS_DIR"/*.m3u8
-
     if [ ! -s "$PLAYLIST" ]; then
         return
     fi
@@ -294,7 +296,8 @@ build_hls() {
         -f hls \
         -hls_time 4 \
         -hls_list_size 6 \
-        -hls_flags delete_segments+append_list+omit_endlist+independent_segments+temp_file \
+        -hls_start_number_source epoch \
+        -hls_flags delete_segments+append_list+omit_endlist+independent_segments+temp_file+discont_start \
         -hls_segment_filename "$HLS_DIR/segment_%09d.ts" \
         "$HLS_DIR/index.m3u8" &
 
@@ -305,6 +308,7 @@ exec 9>"$LOCK_FILE"
 flock -n 9 || exit 0
 trap 'stop_hls' EXIT INT TERM
 
+cleanup_hls
 build_hls
 
 while inotifywait -q -e close_write,moved_to,delete "$VIDEO_DIR"; do
