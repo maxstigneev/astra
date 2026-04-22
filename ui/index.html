@@ -8,7 +8,7 @@
 	<link rel="preconnect" href="https://fonts.googleapis.com">
 	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 	<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700;800&display=swap" rel="stylesheet">
-	<link rel="stylesheet" href="/styles.css">
+	<link rel="stylesheet" href="styles.css">
 </head>
 
 <body>
@@ -44,6 +44,7 @@
 					<span id="videoSize" class="status-pill neutral">0 B</span>
 				</div>
 				<p class="meta">/var/www/video</p>
+				<button id="deleteAllButton" class="button button-danger" type="button">Удалить все</button>
 			</article>
 
 			<article class="panel metric-card">
@@ -103,6 +104,27 @@
 					<div>
 						<p class="metric-label">API панели</p>
 						<p class="mono">127.0.0.1:9180</p>
+					</div>
+				</div>
+			</article>
+
+			<article class="panel panel-wide">
+				<div class="section-head">
+					<h2>Ссылки</h2>
+					<span class="meta">Быстрый доступ к потоку и API</span>
+				</div>
+				<div class="link-grid">
+					<div class="link-card">
+						<p class="metric-label">Поток</p>
+						<a id="streamLink" class="link-anchor mono" href="/index.m3u8">/index.m3u8</a>
+					</div>
+					<div class="link-card">
+						<p class="metric-label">API статуса</p>
+						<a id="apiStatusLink" class="link-anchor mono" href="/api/status">/api/status</a>
+					</div>
+					<div class="link-card">
+						<p class="metric-label">Проверка API</p>
+						<a id="apiHealthLink" class="link-anchor mono" href="/api/health">/api/health</a>
 					</div>
 				</div>
 			</article>

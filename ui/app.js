@@ -12,6 +12,7 @@ const healthyServices = document.getElementById("healthyServices");
 const serviceBadge = document.getElementById("serviceBadge");
 const servicesTable = document.getElementById("servicesTable");
 const fileList = document.getElementById("fileList");
+const deleteAllButton = document.getElementById("deleteAllButton");
 const playlistPath = document.getElementById("playlistPath");
 const diskFree = document.getElementById("diskFree");
 const diskUsed = document.getElementById("diskUsed");
@@ -152,6 +153,7 @@ function renderPayload(payload) {
 
 async function refresh() {
 	refreshButton.disabled = true;
+	deleteAllButton.disabled = true;
 	refreshButton.textContent = "Обновление...";
 	try {
 		const response = await fetch("/api/status", { cache: "no-store" });
@@ -167,10 +169,42 @@ async function refresh() {
 		updatedAt.textContent = "API панели недоступно";
 	} finally {
 		refreshButton.disabled = false;
+		deleteAllButton.disabled = false;
 		refreshButton.textContent = "Обновить сейчас";
 	}
 }
 
+async function deleteAllFiles() {
+	const confirmed = window.confirm("Удалить все файлы из /var/www/video?");
+	if (!confirmed) {
+		return;
+	}
+
+	deleteAllButton.disabled = true;
+	deleteAllButton.textContent = "Удаление...";
+
+	try {
+		const response = await fetch("/api/videos/delete-all", {
+			method: "POST",
+			headers: {
+				"Content-Type": "application/json",
+			},
+		});
+
+		if (!response.ok) {
+			throw new Error(`Удаление завершилось со статусом ${response.status}`);
+		}
+
+		await refresh();
+	} catch (error) {
+		streamMeta.textContent = error.message;
+	} finally {
+		deleteAllButton.disabled = false;
+		deleteAllButton.textContent = "Удалить все";
+	}
+}
+
 refreshButton.addEventListener("click", refresh);
+deleteAllButton.addEventListener("click", deleteAllFiles);
 refresh();
 window.setInterval(refresh, 5000);

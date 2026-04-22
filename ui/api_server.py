@@ -184,6 +184,21 @@ def build_payload():
     }
 
 
+def delete_source_files():
+    deleted = []
+    if not VIDEO_DIR.exists():
+        return {"deletedCount": 0, "deletedFiles": deleted}
+
+    for path in VIDEO_DIR.iterdir():
+        if not path.is_file():
+            continue
+
+        path.unlink()
+        deleted.append(path.name)
+
+    return {"deletedCount": len(deleted), "deletedFiles": deleted}
+
+
 class Handler(BaseHTTPRequestHandler):
     def _send_json(self, payload, status_code=200):
         encoded = json.dumps(payload).encode("utf-8")
@@ -202,6 +217,19 @@ class Handler(BaseHTTPRequestHandler):
 
         if path == "/health":
             self._send_json({"status": "ok", "timestamp": time.time()})
+            return
+
+        self._send_json({"error": "не найдено"}, status_code=404)
+
+    def do_POST(self):
+        path = urlparse(self.path).path
+        if path == "/videos/delete-all":
+            result = delete_source_files()
+            self._send_json({
+                "status": "ok",
+                "message": "Исходные файлы удалены",
+                **result,
+            })
             return
 
         self._send_json({"error": "не найдено"}, status_code=404)
