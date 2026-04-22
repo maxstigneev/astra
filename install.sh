@@ -340,15 +340,18 @@ EOF
 
 setup_astra() {
     log "Установка Cesbo Astra ..."
+    echo
     curl -Lo /usr/bin/astra https://cesbo.com/astra-latest
     chmod +x /usr/bin/astra
 
     if command -v astra >/dev/null 2>&1; then
         log "Astra установлена"
         astra init
+        echo
         log "Запуск сервиса Astra..."
         systemctl start astra
         log "Включение автозапуска Astra..."
+        echo
         systemctl enable astra
         mkdir -p /etc/astra
 
@@ -357,12 +360,15 @@ setup_astra() {
         read -rp "Введите лицензионный ключ Astra (оставьте пустым, если нет): " license_key
         if [[ -n "$license_key" ]]; then
             curl -o /etc/astra/license.txt https://cesbo.com/astra-license/"$license_key"
+            echo
             log "Лицензионный ключ сохранен"
             echo
         fi
 
     else
+        echo
         warn "Не удалось установить Astra"
+        echo
     fi
 }
 
