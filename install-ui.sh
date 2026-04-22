@@ -121,16 +121,7 @@ enable_services() {
     nginx -t >/dev/null
     systemctl enable nginx >/dev/null
     systemctl restart nginx
-}
-
-print_summary() {
-    local host_ip
-    host_ip=$(hostname -I | awk '{print $1}')
-    echo
-  log "Веб-интерфейс установлен"
-  echo
-  echo "Панель управления: http://$host_ip:$UI_PORT"
-  echo "Проверка API: http://$host_ip:$UI_PORT/api/health"
+    log "Веб-интерфейс установлен"
 }
 
 main() {

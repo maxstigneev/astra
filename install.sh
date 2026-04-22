@@ -303,6 +303,42 @@ EOF
     systemctl start hls
 }
 
+setup_astra() {
+    log "Установка Cesbo Astra ..."
+    curl -Lo /usr/bin/astra https://cesbo.com/astra-latest
+    chmod +x /usr/bin/astra
+
+    if command -v astra >/dev/null 2>&1; then
+        log "Astra установлена"
+        astra init
+        log "Запуск сервиса Astra..."
+        systemctl start astra
+        log "Включение автозапуска Astra..."
+        systemctl enable astra
+        mkdir -p /etc/astra
+
+        # ввод лицензионного ключа
+        echo
+        read -rp "Введите лицензионный ключ Astra (оставьте пустым, если нет): " license_key
+        if [[ -n "$license_key" ]]; then
+            curl -o /etc/astra/license.txt https://cesbo.com/astra-license/"$license_key"
+            log "Лицензионный ключ сохранен"
+            echo
+        fi
+
+    else
+        warn "Не удалось установить Astra"
+    fi
+}
+
+setup_system_tune() {
+    log "Настройка системы для оптимальной работы с видео..."
+    curl -Lo /opt/tune.sh https://cdn.cesbo.com/astra/scripts/tune.sh
+    chmod +x /opt/tune.sh
+    /opt/tune.sh install
+    log "Система настроена. Для применения изменений требуется перезагрузка сервера."
+}   
+
 # ---------- MAIN ----------
 
 main() {
@@ -334,8 +370,16 @@ main() {
     echo "       УСТАНОВКА ЗАВЕРШЕНА!"
     echo "===================================="
     echo
+
+    # проверяем, установлена ли астра, и если да - выводим информацию о ней
+    if command -v astra >/dev/null 2>&1; then
+        echo "Astra доступна по адресу:"
+        echo "http://$(hostname -I | awk '{print $1}'):8080"
+        echo
+    fi
+
     if [[ "${INSTALL_NGINX:-1}" -eq 1 ]]; then
-        echo "Поток доступен по адресу:"
+        echo "Поток видео файлов доступен по адресу:"
         echo "http://$(hostname -I | awk '{print $1}')/index.m3u8"
         echo
     else
@@ -344,6 +388,14 @@ main() {
     fi
     echo "Видеофайлы добавлять в директорию:"
     echo "/var/www/video"
+
+    # Если UI установлен, выводим информацию о нем
+    if [ -d "/var/www/ui" ]; then
+        echo "Веб-интерфейс для мониторинга доступен по адресу:"
+        echo "http://$(hostname -I | awk '{print $1}'):8080"
+        echo "Проверка API: http://$(hostname -I | awk '{print $1}'):8080/api/health"
+        echo
+    fi
 }
 
 main
