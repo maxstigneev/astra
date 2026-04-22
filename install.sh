@@ -98,6 +98,40 @@ ask_ui_install() {
     esac
 }
 
+ask_astra_install() {
+    echo
+    echo "Установить Cesbo Astra?"
+    echo "1) Да"
+    echo "2) Нет"
+
+    read -rp "> [1]: " choice
+    echo
+    choice=${choice:-1}
+
+    case "$choice" in
+        1) setup_astra ;;
+        2) warn "Установка Astra пропущена" ;;
+        *) warn "Неверный выбор. Использую 'Да'"; setup_astra ;;
+    esac
+}
+
+ask_system_tune() {
+    echo
+    echo "Настроить систему для оптимальной работы с Astra? (потребуется перезагрузка)"
+    echo "1) Да"
+    echo "2) Нет"
+
+    read -rp "> [1]: " choice
+    echo
+    choice=${choice:-1}
+
+    case "$choice" in
+        1) setup_system_tune ;;
+        2) warn "Настройка системы пропущена" ;;
+        *) warn "Неверный выбор. Использую 'Да'"; setup_system_tune ;;
+    esac
+}
+
 # ---------- ACTIONS ----------
 
 download_ui() {
@@ -135,7 +169,7 @@ install_packages() {
     progress 1
     echo
 
-    log "Установка пакетов..."
+    log "Установка пакетов nginx, ffmpeg, inotify-tools..."
     if [[ "${INSTALL_NGINX:-1}" -eq 1 ]]; then
         install_package nginx
     fi
@@ -333,7 +367,7 @@ setup_astra() {
 }
 
 setup_system_tune() {
-    log "Настройка системы для оптимальной работы с видео..."
+    log "Настройка системы для оптимальной работы с Astra..."
     curl -Lo /opt/tune.sh https://cdn.cesbo.com/astra/scripts/tune.sh
     chmod +x /opt/tune.sh
     /opt/tune.sh install
@@ -365,6 +399,7 @@ main() {
     setup_service
 
     ask_ui_install
+    ask_astra_install
 
     echo
     echo "===================================="
@@ -389,11 +424,13 @@ main() {
     fi
     echo "Видеофайлы добавлять в директорию:"
     echo "/var/www/video"
+    echo
 
     # Если UI установлен, выводим информацию о нем
     if [ -d "/var/www/ui" ]; then
         echo "Веб-интерфейс для мониторинга доступен по адресу:"
         echo "http://$(hostname -I | awk '{print $1}'):8080"
+        echo
         echo "Проверка API: http://$(hostname -I | awk '{print $1}'):8080/api/health"
         echo
     fi

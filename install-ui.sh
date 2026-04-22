@@ -123,7 +123,6 @@ enable_services() {
     systemctl restart nginx
     echo
     log "Веб-интерфейс установлен"
-    echo
 }
 
 main() {
