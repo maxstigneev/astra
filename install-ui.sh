@@ -121,7 +121,9 @@ enable_services() {
     nginx -t >/dev/null
     systemctl enable nginx >/dev/null
     systemctl restart nginx
+    echo
     log "Веб-интерфейс установлен"
+    echo
 }
 
 main() {
@@ -132,7 +134,6 @@ main() {
     write_service_unit
     write_nginx_site
     enable_services
-    print_summary
 }
 
 main

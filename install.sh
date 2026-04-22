@@ -283,6 +283,7 @@ EOF
 
 setup_service() {
     log "Создание systemd сервиса..."
+    echo
 
     cat > /etc/systemd/system/hls.service << 'EOF'
 [Unit]
