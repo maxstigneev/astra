@@ -143,9 +143,9 @@ ask_test_video() {
     choice=${choice:-1}
 
     case "$choice" in
-        1) curl -L https://github.com/chthomos/video-media-samples/raw/refs/heads/master/big-buck-bunny-1080p-30sec.mp4 -o /var/www/video/test.mp4 ;;
+        1) download_test_video ;;
         2) warn "Тестовое видео не будет добавлено" ;;
-        *) warn "Неверный выбор. Использую 'Да'"; curl -L https://github.com/chthomos/video-media-samples/raw/refs/heads/master/big-buck-bunny-1080p-30sec.mp4 -o /var/www/video/test.mp4 ;;
+        *) warn "Неверный выбор. Использую 'Да'"; download_test_video ;;
     esac
 }
 
@@ -398,7 +398,14 @@ setup_system_tune() {
     chmod +x /opt/tune.sh
     /opt/tune.sh install
     log "Система настроена. Для применения изменений требуется перезагрузка сервера."
-}   
+}
+
+download_test_video() {
+    log "Загрузка тестового видео..."
+    curl -L https://github.com/chthomos/video-media-samples/raw/refs/heads/master/big-buck-bunny-1080p-30sec.mp4 -o /var/www/video/test.mp4
+    echo
+    log "Тестовое видео добавлено в /var/www/video/test.mp4"
+}
 
 # ---------- MAIN ----------
 
