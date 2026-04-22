@@ -69,18 +69,17 @@ ask_swap_size() {
 
     while true; do
         read -rp "> [3]: " size_choice
+        echo
         size_choice=${size_choice:-3}
 
         case "$size_choice" in
-            1) SWAP_SIZE="1G"; break ;;
-            2) SWAP_SIZE="2G"; break ;;
-            3) SWAP_SIZE="4G"; break ;;
-            4) SWAP_SIZE="8G"; break ;;
+            1) SWAP_SIZE="1GB"; break ;;
+            2) SWAP_SIZE="2GB"; break ;;
+            3) SWAP_SIZE="4GB"; break ;;
+            4) SWAP_SIZE="8GB"; break ;;
             *) echo "Введите число от 1 до 4" ;;
         esac
     done
-
-    log "Выбран swap: $SWAP_SIZE"
 }
 
 ask_ui_install() {
@@ -90,6 +89,7 @@ ask_ui_install() {
     echo "2) Нет"
 
     read -rp "> [1]: " choice
+    echo
     choice=${choice:-1}
 
     case "$choice" in
@@ -131,7 +131,6 @@ install_package() {
 install_packages() {
     echo
     log "Обновление системы..."
-    echo
     apt-get update -y >/dev/null
     echo
     progress 1
