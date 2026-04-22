@@ -6,49 +6,17 @@ set -euo pipefail
 log() { echo -e "\e[32m[INFO]\e[0m $1"; }
 warn() { echo -e "\e[33m[WARN]\e[0m $1"; }
 
-render_progress() {
-    local completed_steps=$1
-    local total_steps=$2
-    local status_text=$3
-    local bar_width=20
-    local filled=$((completed_steps * bar_width / total_steps))
-    local empty=$((bar_width - filled))
-    local percent=$((completed_steps * 100 / total_steps))
-
-    printf "\r["
-    printf "%0.s#" $(seq 1 "$filled")
-    printf "%0.s." $(seq 1 "$empty")
-    printf "] %d%% %s" "$percent" "$status_text"
-}
-
-run_with_progress() {
-    local completed_steps=$1
-    local total_steps=$2
-    local status_text=$3
-    local output_file spinner_index=0
-    local spinner='|/-\\'
-
-    shift 3
-
-    output_file=$(mktemp)
-    "$@" >"$output_file" 2>&1 &
-    local command_pid=$!
-
-    while kill -0 "$command_pid" 2>/dev/null; do
-        render_progress "$completed_steps" "$total_steps" "$status_text ${spinner:spinner_index:1}"
-        spinner_index=$(((spinner_index + 1) % 4))
-        sleep 0.2
+progress() {
+    local duration=$1
+    local steps=20
+    local delay=$(awk "BEGIN {print $duration/$steps}")
+    for ((i=1;i<=steps;i++)); do
+        printf "\r["
+        printf "%0.s#" $(seq 1 $i)
+        printf "%0.s." $(seq $i $steps)
+        printf "] %d%%" $((i*100/steps))
+        sleep "$delay"
     done
-
-    if ! wait "$command_pid"; then
-        echo
-        cat "$output_file"
-        rm -f "$output_file"
-        return 1
-    fi
-
-    rm -f "$output_file"
-    render_progress "$((completed_steps + 1))" "$total_steps" "$status_text"
     echo
 }
 
@@ -148,42 +116,35 @@ install_ui() {
     fi
     log "Установка UI..."
     echo
-    run_with_progress 0 1 "Установка UI" bash ./install-ui.sh
+    progress 1
+    echo
+    bash ./install-ui.sh
 }
 
 install_package() {
     local package_name=$1
-    local completed_steps=$2
-    local total_steps=$3
 
-    run_with_progress "$completed_steps" "$total_steps" "Установка $package_name" apt-get install -y "$package_name"
+    apt-get install -y "$package_name" >/dev/null
     log "$package_name установлен"
 }
 
 install_packages() {
-    local total_steps=3
-    local completed_steps=0
-
-    if [[ "${INSTALL_NGINX:-1}" -eq 1 ]]; then
-        total_steps=4
-    fi
-
     echo
     log "Обновление системы..."
-    run_with_progress "$completed_steps" "$total_steps" "Обновление системы" apt-get update -y
-    completed_steps=$((completed_steps + 1))
+    apt-get update -y >/dev/null
+    echo
+    progress 1
     echo
 
     log "Установка пакетов..."
     if [[ "${INSTALL_NGINX:-1}" -eq 1 ]]; then
-        install_package nginx "$completed_steps" "$total_steps"
-        completed_steps=$((completed_steps + 1))
+        install_package nginx
     fi
 
-    install_package ffmpeg "$completed_steps" "$total_steps"
-    completed_steps=$((completed_steps + 1))
-
-    install_package inotify-tools "$completed_steps" "$total_steps"
+    install_package ffmpeg
+    install_package inotify-tools
+    echo
+    progress 2
     echo
 }
 
