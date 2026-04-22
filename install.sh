@@ -267,6 +267,7 @@ build_hls() {
     fi
 
     ffmpeg -hide_banner -loglevel warning -nostdin -y \
+        -stream_loop -1 \
         -f concat -safe 0 -i "$PLAYLIST" \
         -map 0:v:0 -map 0:a:0? \
         -c:v copy \
