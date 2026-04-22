@@ -41,6 +41,13 @@ install_dependencies() {
     apt-get install -y nginx python3 >/dev/null
 }
 
+download_ui() {
+    curl -fsSL https://raw.githubusercontent.com/maxstigneev/astra/main/ui/api_server.py -o "$APP_ROOT/api_server.py"
+    curl -fsSL https://raw.githubusercontent.com/maxstigneev/astra/main/ui/app.js -o "$APP_ROOT/app.js"
+    curl -fsSL https://raw.githubusercontent.com/maxstigneev/astra/main/ui/index.html -o "$APP_ROOT/index.html"
+    curl -fsSL https://raw.githubusercontent.com/maxstigneev/astra/main/ui/styles.css -o "$APP_ROOT/styles.css"
+}
+
 write_api_server() {
     log "Создание API-сервиса..."
     mkdir -p "$APP_ROOT"
@@ -972,8 +979,9 @@ main() {
   require_supported_os
     require_root
     install_dependencies
-    write_api_server
-    write_ui_files
+    download_ui
+    # write_api_server
+    # write_ui_files
     write_service_unit
     write_nginx_site
     enable_services

@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="ru">
+
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<title>MOOVI Playout Панель управления</title>
+	<link rel="preconnect" href="https://fonts.googleapis.com">
+	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+	<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700;800&display=swap" rel="stylesheet">
+	<link rel="stylesheet" href="/styles.css">
+</head>
+
+<body>
+	<div class="background-orb orb-a"></div>
+	<div class="background-orb orb-b"></div>
+	<main class="shell">
+		<section class="hero panel">
+			<div>
+				<p class="eyebrow">MOOVI Playout</p>
+				<h1>Управление сервисом</h1>
+				<p class="hero-copy">Состояние потока, видеофайлов и служб</p>
+			</div>
+			<div class="hero-actions">
+				<button id="refreshButton" class="button" type="button">Обновить сейчас</button>
+				<p id="updatedAt" class="meta">Ожидание первого обновления...</p>
+			</div>
+		</section>
+
+		<section class="summary-grid">
+			<article class="panel metric-card">
+				<p class="metric-label">Поток</p>
+				<div class="metric-row">
+					<strong id="streamStatus" class="metric-value">--</strong>
+					<span id="streamBadge" class="status-pill neutral">Неизвестно</span>
+				</div>
+				<p id="streamMeta" class="meta">Состояние плейлиста ожидается</p>
+			</article>
+
+			<article class="panel metric-card">
+				<p class="metric-label">Исходные файлы</p>
+				<div class="metric-row">
+					<strong id="videoCount" class="metric-value">0</strong>
+					<span id="videoSize" class="status-pill neutral">0 B</span>
+				</div>
+				<p class="meta">/var/www/video</p>
+			</article>
+
+			<article class="panel metric-card">
+				<p class="metric-label">Сегменты</p>
+				<div class="metric-row">
+					<strong id="segmentCount" class="metric-value">0</strong>
+					<span id="playlistBadge" class="status-pill neutral">Плейлист отсутствует</span>
+				</div>
+				<p id="playlistMeta" class="meta">Данных HLS пока нет</p>
+			</article>
+
+			<article class="panel metric-card">
+				<p class="metric-label">Службы</p>
+				<div class="metric-row">
+					<strong id="healthyServices" class="metric-value">0/0</strong>
+					<span id="serviceBadge" class="status-pill neutral">Неизвестно</span>
+				</div>
+				<p class="meta">nginx, hls, ui-api</p>
+			</article>
+		</section>
+
+		<section class="content-grid">
+			<article class="panel">
+				<div class="section-head">
+					<h2>Состояние служб</h2>
+					<span class="meta">Текущее состояние systemd</span>
+				</div>
+				<div id="servicesTable" class="table-shell"></div>
+			</article>
+
+			<article class="panel">
+				<div class="section-head">
+					<h2>Последние видео</h2>
+					<span class="meta">Сначала новые файлы</span>
+				</div>
+				<div id="fileList" class="file-list"></div>
+			</article>
+
+			<article class="panel panel-wide">
+				<div class="section-head">
+					<h2>Обзор системы</h2>
+					<span class="meta">Полезные данные о работе сервиса</span>
+				</div>
+				<div class="system-grid">
+					<div>
+						<p class="metric-label">Путь к плейлисту</p>
+						<p id="playlistPath" class="mono">/var/www/hls/index.m3u8</p>
+					</div>
+					<div>
+						<p class="metric-label">Свободно на диске</p>
+						<p id="diskFree" class="mono">--</p>
+					</div>
+					<div>
+						<p class="metric-label">Занято на диске</p>
+						<p id="diskUsed" class="mono">--</p>
+					</div>
+					<div>
+						<p class="metric-label">API панели</p>
+						<p class="mono">127.0.0.1:9180</p>
+					</div>
+				</div>
+			</article>
+		</section>
+	</main>
+	<script src="/app.js" defer></script>
+</body>
+
+</html>
