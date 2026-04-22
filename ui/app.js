@@ -62,15 +62,16 @@ function applyPill(node, label, tone) {
 
 function updateLinks() {
 	const baseUrl = `${window.location.protocol}//${window.location.hostname}`;
+	const baseUrlWithPort = `${baseUrl}:${window.location.port}`;
 
 	streamLink.href = `${baseUrl}/index.m3u8`;
 	streamLink.textContent = `${baseUrl}/index.m3u8`;
 
-	apiStatusLink.href = `${baseUrl}/api/status`;
-	apiStatusLink.textContent = `${baseUrl}/api/status`;
+	apiStatusLink.href = `${baseUrlWithPort}/api/status`;
+	apiStatusLink.textContent = `${baseUrlWithPort}/api/status`;
 
-	apiHealthLink.href = `${baseUrl}/api/health`;
-	apiHealthLink.textContent = `${baseUrl}/api/health`;
+	apiHealthLink.href = `${baseUrlWithPort}/api/health`;
+	apiHealthLink.textContent = `${baseUrlWithPort}/api/health`;
 }
 
 function renderServices(services) {
