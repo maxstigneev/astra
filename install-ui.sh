@@ -472,7 +472,7 @@ body {
 }
 
 .eyebrow {
-  margin: 0 0 0.4rem;
+  margin: 0 0 1rem;
   color: var(--accent);
   letter-spacing: 0.18em;
   text-transform: uppercase;
@@ -486,7 +486,7 @@ p {
 }
 
 h1 {
-  font-size: clamp(2rem, 5vw, 4rem);
+  font-size: 3rem;
   line-height: 0.98;
   max-width: 11ch;
 }
@@ -510,7 +510,7 @@ h2 {
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  align-items: flex-start;
+  align-items: flex-end;
   gap: 1rem;
 }
 
@@ -571,6 +571,7 @@ h2 {
 
 .metric-label {
   margin-bottom: 0.8rem;
+  padding-top: 0.6rem;
   color: var(--muted);
   font-size: 0.82rem;
   text-transform: uppercase;
@@ -592,7 +593,7 @@ h2 {
 }
 
 .metric-value {
-  font-size: clamp(1.7rem, 3vw, 2.5rem);
+  font-size: 2rem;
 }
 
 .status-pill {
