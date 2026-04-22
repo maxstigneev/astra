@@ -345,7 +345,9 @@ setup_astra() {
     chmod +x /usr/bin/astra
 
     if command -v astra >/dev/null 2>&1; then
+        echo
         log "Astra установлена"
+        echo
         astra init
         echo
         log "Запуск сервиса Astra..."
@@ -416,7 +418,7 @@ main() {
     # проверяем, установлена ли астра, и если да - выводим информацию о ней
     if command -v astra >/dev/null 2>&1; then
         echo "Astra доступна по адресу:"
-        echo "http://$(hostname -I | awk '{print $1}'):8080"
+        echo "http://$(hostname -I | awk '{print $1}'):8000"
         echo
     fi
 
