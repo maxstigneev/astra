@@ -89,7 +89,6 @@ ask_ui_install() {
     echo "2) Нет"
 
     read -rp "> [1]: " choice
-    echo
     choice=${choice:-1}
 
     case "$choice" in
