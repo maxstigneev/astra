@@ -132,6 +132,23 @@ ask_system_tune() {
     esac
 }
 
+ask_test_video() {
+    echo
+    echo "Добавить тестовое видео для проверки работы?"
+    echo "1) Да"
+    echo "2) Нет"
+
+    read -rp "> [1]: " choice
+    echo
+    choice=${choice:-1}
+
+    case "$choice" in
+        1) curl -L https://github.com/chthomos/video-media-samples/raw/refs/heads/master/big-buck-bunny-1080p-30sec.mp4 -o /var/www/video/test.mp4 ;;
+        2) warn "Тестовое видео не будет добавлено" ;;
+        *) warn "Неверный выбор. Использую 'Да'"; curl -L https://github.com/chthomos/video-media-samples/raw/refs/heads/master/big-buck-bunny-1080p-30sec.mp4 -o /var/www/video/test.mp4 ;;
+    esac
+}
+
 # ---------- ACTIONS ----------
 
 download_ui() {
@@ -360,6 +377,7 @@ setup_astra() {
         # ввод лицензионного ключа
         echo
         read -rp "Введите лицензионный ключ Astra (оставьте пустым, если нет): " license_key
+        echo
         if [[ -n "$license_key" ]]; then
             curl -o /etc/astra/license.txt https://cesbo.com/astra-license/"$license_key"
             echo
@@ -408,6 +426,7 @@ main() {
 
     ask_ui_install
     ask_astra_install
+    ask_test_video
 
     echo
     echo "===================================="
