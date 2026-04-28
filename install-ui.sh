@@ -14,6 +14,7 @@ NGINX_SITE="/etc/nginx/sites-available/ui"
 NGINX_LINK="/etc/nginx/sites-enabled/ui"
 API_PORT="9180"
 UI_PORT="8080"
+UPLOAD_LIMIT="500M"
 API_KEY_VALUE=""
 
 require_supported_os() {
@@ -127,6 +128,8 @@ server {
     listen [::]:$UI_PORT;
     server_name _;
 
+    client_max_body_size $UPLOAD_LIMIT;
+
     root $UI_ROOT;
     index index.html;
 
@@ -149,6 +152,16 @@ server {
       proxy_http_version 1.1;
       proxy_set_header Host \$host;
       proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+    }
+
+    location = /api/videos/upload {
+      limit_except POST { deny all; }
+      proxy_pass http://127.0.0.1:$API_PORT/videos/upload;
+      proxy_http_version 1.1;
+      proxy_set_header Host \$host;
+      proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+      proxy_request_buffering off;
+      proxy_read_timeout 600s;
     }
 
     location / {

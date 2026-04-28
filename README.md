@@ -69,7 +69,7 @@ grep '^UI_API_KEY=' /opt/ui/.env
 Пример загрузки файла:
 
 ```bash
-curl -X POST "http://127.0.0.1:9180/videos/upload" \
+curl -X POST "http://127.0.0.1:8080/api/videos/upload" \
 	-H "X-API-Key: YOUR_SECRET_KEY" \
 	-H "X-Filename: movie.mp4" \
 	--data-binary @/path/to/movie.mp4
