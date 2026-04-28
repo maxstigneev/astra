@@ -17,6 +17,47 @@ UI_PORT="8080"
 UPLOAD_LIMIT="500M"
 API_KEY_VALUE=""
 
+wait_for_apt_lock() {
+  local waited=0
+  local timeout=300
+
+  while fuser /var/lib/dpkg/lock-frontend >/dev/null 2>&1 \
+    || fuser /var/lib/dpkg/lock >/dev/null 2>&1 \
+    || fuser /var/lib/apt/lists/lock >/dev/null 2>&1 \
+    || fuser /var/cache/apt/archives/lock >/dev/null 2>&1; do
+    if [[ "$waited" -eq 0 ]]; then
+      warn "Обнаружена блокировка apt/dpkg (часто из-за unattended-upgrades). Жду освобождения..."
+    fi
+
+    if [[ "$waited" -ge "$timeout" ]]; then
+      fail "Блокировка apt/dpkg не освобождена за ${timeout} секунд. Повторите установку позже."
+    fi
+
+    sleep 5
+    waited=$((waited + 5))
+  done
+}
+
+apt_get_retry() {
+  local tries=0
+  local max_tries=5
+
+  while true; do
+    if apt-get "$@"; then
+      return 0
+    fi
+
+    tries=$((tries + 1))
+    if [[ "$tries" -ge "$max_tries" ]]; then
+      fail "Не удалось выполнить apt-get $* после ${max_tries} попыток"
+    fi
+
+    warn "apt-get $* завершился с ошибкой, повтор через 5 сек (попытка $((tries + 1))/${max_tries})"
+    wait_for_apt_lock
+    sleep 5
+  done
+}
+
 require_supported_os() {
   if [[ "$(uname -s)" != "Linux" ]]; then
     fail "Этот скрипт предназначен для серверов Ubuntu/Debian и не может запускаться на macOS"
@@ -40,8 +81,10 @@ require_root() {
 
 install_dependencies() {
     log "Установка зависимостей..."
-    apt-get update -y >/dev/null
-  apt-get install -y curl nginx python3 >/dev/null
+    wait_for_apt_lock
+    apt_get_retry update -y >/dev/null
+    wait_for_apt_lock
+    apt_get_retry install -y curl nginx python3 >/dev/null
 }
 
 download_ui() {
