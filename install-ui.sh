@@ -8,11 +8,13 @@ fail() { echo -e "\e[31m[ERROR]\e[0m ${1-}" >&2; exit 1; }
 UI_ROOT="/var/www/ui"
 APP_ROOT="/opt/ui"
 API_SCRIPT="$APP_ROOT/api_server.py"
+APP_ENV_FILE="$APP_ROOT/.env"
 API_SERVICE="ui-api.service"
 NGINX_SITE="/etc/nginx/sites-available/ui"
 NGINX_LINK="/etc/nginx/sites-enabled/ui"
 API_PORT="9180"
 UI_PORT="8080"
+API_KEY_VALUE=""
 
 require_supported_os() {
   if [[ "$(uname -s)" != "Linux" ]]; then
@@ -53,6 +55,50 @@ download_ui() {
   chmod +x "$API_SCRIPT"
 }
 
+generate_api_key() {
+  local generated_key
+
+  generated_key="$(openssl rand -hex 32 2>/dev/null || true)"
+  if [[ -z "$generated_key" ]]; then
+    generated_key="$(python3 -c 'import secrets; print(secrets.token_hex(32))')"
+  fi
+
+  printf "%s" "$generated_key"
+}
+
+setup_api_env() {
+  local existing_key
+  local generated_key
+
+  log "Настройка API-ключа..."
+  mkdir -p "$APP_ROOT"
+
+  existing_key=""
+  if [[ -f "$APP_ENV_FILE" ]]; then
+    existing_key="$(grep -E '^UI_API_KEY=' "$APP_ENV_FILE" | head -n1 | cut -d= -f2- || true)"
+  fi
+
+  if [[ -n "$existing_key" ]]; then
+    API_KEY_VALUE="$existing_key"
+    log "Используется существующий API-ключ из $APP_ENV_FILE"
+    return
+  fi
+
+  generated_key="$(generate_api_key)"
+
+  if [[ -f "$APP_ENV_FILE" ]]; then
+    printf "\nUI_API_KEY=%s\n" "$generated_key" >> "$APP_ENV_FILE"
+  else
+    cat > "$APP_ENV_FILE" <<EOF
+UI_API_KEY=$generated_key
+EOF
+  fi
+
+  chmod 600 "$APP_ENV_FILE"
+  API_KEY_VALUE="$generated_key"
+  log "API-ключ сгенерирован и сохранен в $APP_ENV_FILE"
+}
+
 write_service_unit() {
   log "Создание systemd-юнита..."
     cat > "/etc/systemd/system/$API_SERVICE" <<EOF
@@ -63,6 +109,7 @@ After=network.target
 [Service]
 Type=simple
 WorkingDirectory=$APP_ROOT
+EnvironmentFile=$APP_ENV_FILE
 ExecStart=/usr/bin/python3 $API_SCRIPT
 Restart=always
 RestartSec=3
@@ -123,6 +170,9 @@ enable_services() {
     systemctl restart nginx
     echo
     log "Веб-интерфейс установлен"
+    log "Скопируйте API-ключ для системы отправки файлов:"
+    echo "UI_API_KEY=$API_KEY_VALUE"
+    echo "Файл с ключом: $APP_ENV_FILE"
 }
 
 main() {
@@ -130,6 +180,7 @@ main() {
     require_root
     install_dependencies
     download_ui
+    setup_api_env
     write_service_unit
     write_nginx_site
     enable_services

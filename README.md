@@ -48,3 +48,36 @@ video files → playlist → ffmpeg → HLS → nginx
 ## Просмотр журнала
 
 journalctl -u hls -n 50
+
+## API загрузки видео
+
+UI API слушает локально на порту 9180.
+
+Для операций изменения данных требуется API-ключ через заголовок X-API-Key.
+
+Если UI ставится через install.sh, ключ создаётся автоматически:
+- файл с ключом: /opt/ui/.env
+- переменная: UI_API_KEY
+- при установке ключ выводится в консоль, его можно сразу скопировать
+
+Показать текущий ключ на сервере:
+
+```bash
+grep '^UI_API_KEY=' /opt/ui/.env
+```
+
+Пример загрузки файла:
+
+```bash
+curl -X POST "http://127.0.0.1:9180/videos/upload" \
+	-H "X-API-Key: YOUR_SECRET_KEY" \
+	-H "X-Filename: movie.mp4" \
+	--data-binary @/path/to/movie.mp4
+```
+
+Удаление исходных файлов также требует ключ:
+
+```bash
+curl -X POST "http://127.0.0.1:9180/videos/delete-all" \
+	-H "X-API-Key: YOUR_SECRET_KEY"
+```

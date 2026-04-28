@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import json
+import os
 import shutil
 import subprocess
 import time
@@ -13,6 +14,7 @@ HLS_DIR = Path("/var/www/hls")
 PLAYLIST_PATH = HLS_DIR / "index.m3u8"
 API_HOST = "127.0.0.1"
 API_PORT = 9180
+API_KEY = os.environ.get("UI_API_KEY", "")
 SERVICE_UNITS = [
     ("nginx.service", "nginx"),
     ("hls.service", "hls"),
@@ -199,6 +201,89 @@ def delete_source_files():
     return {"deletedCount": len(deleted), "deletedFiles": deleted}
 
 
+def get_request_api_key(handler):
+    value = handler.headers.get("X-API-Key", "")
+    return value.strip()
+
+
+def is_api_key_valid(handler):
+    # If key is not configured, any mutating API operation must be denied.
+    if not API_KEY:
+        return False
+    return get_request_api_key(handler) == API_KEY
+
+
+def sanitize_filename(raw_name):
+    safe_name = Path(raw_name).name.strip()
+    if not safe_name:
+        return None
+    return safe_name
+
+
+def save_uploaded_video(handler):
+    content_length = handler.headers.get("Content-Length")
+    filename = handler.headers.get("X-Filename") or ""
+    safe_name = sanitize_filename(filename)
+
+    if not safe_name:
+        return {
+            "ok": False,
+            "statusCode": 400,
+            "error": "Требуется заголовок X-Filename",
+        }
+
+    if not content_length:
+        return {
+            "ok": False,
+            "statusCode": 411,
+            "error": "Требуется Content-Length",
+        }
+
+    try:
+        bytes_to_read = int(content_length)
+    except ValueError:
+        return {
+            "ok": False,
+            "statusCode": 400,
+            "error": "Некорректный Content-Length",
+        }
+
+    if bytes_to_read <= 0:
+        return {
+            "ok": False,
+            "statusCode": 400,
+            "error": "Пустое тело запроса",
+        }
+
+    VIDEO_DIR.mkdir(parents=True, exist_ok=True)
+    destination = VIDEO_DIR / safe_name
+
+    remaining = bytes_to_read
+    with destination.open("wb") as output:
+        while remaining > 0:
+            chunk = handler.rfile.read(min(65536, remaining))
+            if not chunk:
+                break
+            output.write(chunk)
+            remaining -= len(chunk)
+
+    written_bytes = bytes_to_read - remaining
+    if written_bytes != bytes_to_read:
+        destination.unlink(missing_ok=True)
+        return {
+            "ok": False,
+            "statusCode": 400,
+            "error": "Тело запроса обрезано",
+        }
+
+    return {
+        "ok": True,
+        "filename": safe_name,
+        "path": str(destination),
+        "bytesWritten": written_bytes,
+    }
+
+
 class Handler(BaseHTTPRequestHandler):
     def _send_json(self, payload, status_code=200):
         encoded = json.dumps(payload).encode("utf-8")
@@ -223,6 +308,28 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_POST(self):
         path = urlparse(self.path).path
+        if path in {"/videos/delete-all", "/videos/upload"} and not is_api_key_valid(self):
+            self._send_json({"error": "не авторизован"}, status_code=401)
+            return
+
+        if path == "/videos/upload":
+            result = save_uploaded_video(self)
+            if not result.get("ok"):
+                self._send_json({"error": result["error"]}, status_code=result["statusCode"])
+                return
+
+            self._send_json(
+                {
+                    "status": "ok",
+                    "message": "Файл загружен",
+                    "filename": result["filename"],
+                    "path": result["path"],
+                    "bytesWritten": result["bytesWritten"],
+                },
+                status_code=201,
+            )
+            return
+
         if path == "/videos/delete-all":
             result = delete_source_files()
             self._send_json({
