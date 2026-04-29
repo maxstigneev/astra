@@ -278,6 +278,7 @@ stop_hls() {
 
 build_hls() {
     stop_hls
+    cleanup_hls
 
     /usr/local/bin/build_playlist.sh
 
@@ -409,7 +410,6 @@ setup_astra() {
             curl -o /etc/astra/license.txt https://cesbo.com/astra-license/"$license_key"
             echo
             log "Лицензионный ключ сохранен"
-            echo
         fi
 
     else
@@ -429,6 +429,7 @@ setup_system_tune() {
 
 download_test_video() {
     log "Загрузка тестового видео..."
+    echo
     curl -L https://github.com/chthomos/video-media-samples/raw/refs/heads/master/big-buck-bunny-1080p-30sec.mp4 -o /var/www/video/test.mp4
     echo
     log "Тестовое видео добавлено в /var/www/video/test.mp4"

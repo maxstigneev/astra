@@ -197,6 +197,14 @@ server {
       proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
     }
 
+    location = /api/videos/delete-by-name {
+      limit_except POST { deny all; }
+      proxy_pass http://127.0.0.1:$API_PORT/videos/delete-by-name;
+      proxy_http_version 1.1;
+      proxy_set_header Host \$host;
+      proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+    }
+
     location = /api/videos/upload {
       limit_except POST { deny all; }
       proxy_pass http://127.0.0.1:$API_PORT/videos/upload;
@@ -227,8 +235,9 @@ enable_services() {
     echo
     log "Веб-интерфейс установлен"
     log "Скопируйте API-ключ для системы отправки файлов:"
-    echo "UI_API_KEY=$API_KEY_VALUE"
-    echo "Файл с ключом: $APP_ENV_FILE"
+    echo
+    echo "$API_KEY_VALUE"
+    echo "Ключ сохранен в: $APP_ENV_FILE"
 }
 
 main() {
