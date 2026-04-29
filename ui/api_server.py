@@ -201,6 +201,67 @@ def delete_source_files():
     return {"deletedCount": len(deleted), "deletedFiles": deleted}
 
 
+def parse_json_body(handler):
+    content_length = handler.headers.get("Content-Length")
+    if not content_length:
+        return None, "Требуется Content-Length"
+
+    try:
+        body_length = int(content_length)
+    except ValueError:
+        return None, "Некорректный Content-Length"
+
+    if body_length <= 0:
+        return None, "Пустое тело запроса"
+
+    raw = handler.rfile.read(body_length)
+    try:
+        return json.loads(raw.decode("utf-8")), None
+    except (UnicodeDecodeError, json.JSONDecodeError):
+        return None, "Некорректный JSON"
+
+
+def delete_files_by_basename(name):
+    if not VIDEO_DIR.exists():
+        return {
+            "ok": True,
+            "deletedCount": 0,
+            "deletedFiles": [],
+            "message": "Каталог с видео не найден",
+        }
+
+    requested = (name or "").strip()
+    if not requested:
+        return {
+            "ok": False,
+            "statusCode": 400,
+            "error": "Требуется поле name в JSON",
+        }
+
+    # Match only the stem (name without extension), disallow path-like input.
+    if "/" in requested or "\\" in requested or requested in {".", ".."}:
+        return {
+            "ok": False,
+            "statusCode": 400,
+            "error": "Некорректное имя файла",
+        }
+
+    deleted = []
+    for path in VIDEO_DIR.iterdir():
+        if not path.is_file():
+            continue
+        if path.stem != requested:
+            continue
+        path.unlink()
+        deleted.append(path.name)
+
+    return {
+        "ok": True,
+        "deletedCount": len(deleted),
+        "deletedFiles": deleted,
+    }
+
+
 def get_request_api_key(handler):
     value = handler.headers.get("X-API-Key", "")
     return value.strip()
@@ -308,7 +369,7 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_POST(self):
         path = urlparse(self.path).path
-        if path in {"/videos/delete-all", "/videos/upload"} and not is_api_key_valid(self):
+        if path in {"/videos/delete-all", "/videos/delete-by-name", "/videos/upload"} and not is_api_key_valid(self):
             self._send_json({"error": "не авторизован"}, status_code=401)
             return
 
@@ -336,6 +397,25 @@ class Handler(BaseHTTPRequestHandler):
                 "status": "ok",
                 "message": "Исходные файлы удалены",
                 **result,
+            })
+            return
+
+        if path == "/videos/delete-by-name":
+            payload, error = parse_json_body(self)
+            if error:
+                self._send_json({"error": error}, status_code=400)
+                return
+
+            result = delete_files_by_basename(payload.get("name"))
+            if not result.get("ok"):
+                self._send_json({"error": result["error"]}, status_code=result["statusCode"])
+                return
+
+            self._send_json({
+                "status": "ok",
+                "message": "Файлы удалены",
+                "deletedCount": result["deletedCount"],
+                "deletedFiles": result["deletedFiles"],
             })
             return
 

@@ -81,3 +81,14 @@ curl -X POST "http://127.0.0.1:8080/api/videos/upload" \
 curl -X POST "http://127.0.0.1:9180/videos/delete-all" \
 	-H "X-API-Key: YOUR_SECRET_KEY"
 ```
+
+Удаление файла(ов) по имени без расширения:
+
+```bash
+curl -X POST "http://127.0.0.1:9180/videos/delete-by-name" \
+	-H "X-API-Key: YOUR_SECRET_KEY" \
+	-H "Content-Type: application/json" \
+	-d '{"name":"movie"}'
+```
+
+В веб-интерфейсе кнопка "Удалить все" запрашивает API-ключ при первом использовании и сохраняет его в localStorage браузера.

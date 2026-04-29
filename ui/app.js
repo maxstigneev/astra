@@ -19,6 +19,7 @@ const diskUsed = document.getElementById("diskUsed");
 const streamLink = document.getElementById("streamLink");
 const apiStatusLink = document.getElementById("apiStatusLink");
 const apiHealthLink = document.getElementById("apiHealthLink");
+const API_KEY_STORAGE_KEY = "astraApiKey";
 
 function formatBytes(bytes) {
 	if (!Number.isFinite(bytes) || bytes <= 0) {
@@ -72,6 +73,30 @@ function updateLinks() {
 
 	apiHealthLink.href = `${baseUrlWithPort}/api/health`;
 	apiHealthLink.textContent = `${baseUrlWithPort}/api/health`;
+}
+
+function getStoredApiKey() {
+	return window.localStorage.getItem(API_KEY_STORAGE_KEY) || "";
+}
+
+function requestApiKey(force = false) {
+	const currentKey = getStoredApiKey();
+	if (currentKey && !force) {
+		return currentKey;
+	}
+
+	const entered = window.prompt("Введите API-ключ для операций изменения данных", currentKey);
+	if (!entered) {
+		return "";
+	}
+
+	const trimmed = entered.trim();
+	if (!trimmed) {
+		return "";
+	}
+
+	window.localStorage.setItem(API_KEY_STORAGE_KEY, trimmed);
+	return trimmed;
 }
 
 function renderServices(services) {
@@ -197,6 +222,12 @@ async function deleteAllFiles() {
 		return;
 	}
 
+	const apiKey = requestApiKey(false);
+	if (!apiKey) {
+		streamMeta.textContent = "Удаление отменено: API-ключ не указан";
+		return;
+	}
+
 	deleteAllButton.disabled = true;
 	deleteAllButton.textContent = "Удаление...";
 
@@ -204,9 +235,14 @@ async function deleteAllFiles() {
 		const response = await fetch("/api/videos/delete-all", {
 			method: "POST",
 			headers: {
-				"Content-Type": "application/json",
+				"X-API-Key": apiKey,
 			},
 		});
+
+		if (response.status === 401) {
+			window.localStorage.removeItem(API_KEY_STORAGE_KEY);
+			throw new Error("Неверный API-ключ. Введите ключ повторно при следующей попытке.");
+		}
 
 		if (!response.ok) {
 			throw new Error(`Удаление завершилось со статусом ${response.status}`);
