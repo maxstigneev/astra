@@ -5,7 +5,7 @@ import shutil
 import subprocess
 import time
 from datetime import datetime, timezone
-from http.server import BaseHTTPRequestHandler, HTTPServer
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import urlparse
 
@@ -426,7 +426,7 @@ class Handler(BaseHTTPRequestHandler):
 
 
 def main():
-    server = HTTPServer((API_HOST, API_PORT), Handler)
+    server = ThreadingHTTPServer((API_HOST, API_PORT), Handler)
     server.serve_forever()
 
 
