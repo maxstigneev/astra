@@ -2,6 +2,7 @@
 import json
 import os
 import shutil
+import signal
 import subprocess
 import time
 from datetime import datetime, timezone
@@ -12,6 +13,8 @@ from urllib.parse import urlparse
 VIDEO_DIR = Path("/var/www/video")
 HLS_DIR = Path("/var/www/hls")
 PLAYLIST_PATH = HLS_DIR / "index.m3u8"
+CHANNELS_ROOT = Path("/var/lib/astra-vod/channels")
+CHANNELS_HLS_DIR = HLS_DIR / "channels"
 API_HOST = "127.0.0.1"
 API_PORT = 9180
 API_KEY = os.environ.get("UI_API_KEY", "")
@@ -21,29 +24,36 @@ SERVICE_UNITS = [
     ("ui-api.service", "ui-api"),
 ]
 STATE_LABELS = {
-  "active": "активна",
-  "inactive": "неактивна",
-  "failed": "ошибка",
-  "activating": "запускается",
-  "deactivating": "останавливается",
-  "running": "работает",
-  "exited": "завершена",
-  "dead": "остановлена",
-  "loaded": "загружена",
-  "enabled": "включена",
-  "disabled": "выключена",
-  "masked": "замаскирована",
-  "not-found": "не найдена",
-  "unknown": "неизвестно",
-  "online": "онлайн",
-  "degraded": "нестабильно",
-  "offline": "неактивен",
+    "active": "активна",
+    "inactive": "неактивна",
+    "failed": "ошибка",
+    "activating": "запускается",
+    "deactivating": "останавливается",
+    "running": "работает",
+    "exited": "завершена",
+    "dead": "остановлена",
+    "loaded": "загружена",
+    "enabled": "включена",
+    "disabled": "выключена",
+    "masked": "замаскирована",
+    "not-found": "не найдена",
+    "unknown": "неизвестно",
+    "online": "онлайн",
+    "degraded": "нестабильно",
+    "offline": "неактивен",
 }
 STREAM_STATUS_TITLES = {
-  "online": "В РАБОТЕ",
-  "degraded": "НЕСТАБИЛЕН",
-  "offline": "НЕ АКТИВЕН",
+    "online": "В РАБОТЕ",
+    "degraded": "НЕСТАБИЛЕН",
+    "offline": "НЕ АКТИВЕН",
 }
+
+
+def ensure_dirs():
+    VIDEO_DIR.mkdir(parents=True, exist_ok=True)
+    HLS_DIR.mkdir(parents=True, exist_ok=True)
+    CHANNELS_ROOT.mkdir(parents=True, exist_ok=True)
+    CHANNELS_HLS_DIR.mkdir(parents=True, exist_ok=True)
 
 
 def iso_timestamp(timestamp):
@@ -55,8 +65,48 @@ def run_command(args):
     return result.returncode, result.stdout.strip(), result.stderr.strip()
 
 
+def sanitize_filename(raw_name):
+    safe_name = Path(raw_name).name.strip()
+    return safe_name or None
+
+
+def sanitize_channel_key(raw_value):
+    value = (raw_value or "").strip().lower()
+    if not value:
+        return None
+
+    output = []
+    previous_dash = False
+    for char in value:
+        if char.isalnum():
+            output.append(char)
+            previous_dash = False
+        elif char in {"-", "_", " "}:
+            if not previous_dash:
+                output.append("-")
+                previous_dash = True
+
+    normalized = "".join(output).strip("-")
+    return normalized or None
+
+
+def unique_destination_path(directory, filename):
+    candidate = directory / filename
+    if not candidate.exists():
+        return candidate
+
+    stem = candidate.stem
+    suffix = candidate.suffix
+    counter = 2
+    while True:
+        next_candidate = directory / f"{stem}_{counter}{suffix}"
+        if not next_candidate.exists():
+            return next_candidate
+        counter += 1
+
+
 def label_for_state(value):
-  return STATE_LABELS.get(value, value)
+    return STATE_LABELS.get(value, value)
 
 
 def get_service_status(unit_name, label):
@@ -82,14 +132,14 @@ def get_service_status(unit_name, label):
         "name": label,
         "healthy": healthy,
         "loadState": load_state,
-      "loadStateLabel": label_for_state(load_state),
+        "loadStateLabel": label_for_state(load_state),
         "activeState": active_state,
-      "activeStateLabel": label_for_state(active_state),
+        "activeStateLabel": label_for_state(active_state),
         "subState": sub_state,
-      "subStateLabel": label_for_state(sub_state),
+        "subStateLabel": label_for_state(sub_state),
         "unitFileState": unit_file_state,
-      "unitFileStateLabel": label_for_state(unit_file_state),
-      "healthLabel": "Исправна" if healthy else label_for_state(load_state),
+        "unitFileStateLabel": label_for_state(unit_file_state),
+        "healthLabel": "Исправна" if healthy else label_for_state(load_state),
         "details": stderr,
         "exitCode": code,
     }
@@ -100,14 +150,7 @@ def collect_services():
 
 
 def collect_videos():
-    if not VIDEO_DIR.exists():
-        return {
-            "count": 0,
-            "totalBytes": 0,
-            "recentFiles": [],
-            "directoryExists": False,
-        }
-
+    ensure_dirs()
     files = []
     total_bytes = 0
     for path in VIDEO_DIR.glob("*.mp4"):
@@ -137,6 +180,222 @@ def collect_videos():
     }
 
 
+def channel_root(channel_key):
+    return CHANNELS_ROOT / channel_key
+
+
+def channel_playlist_file(channel_key):
+    return channel_root(channel_key) / "playlist.txt"
+
+
+def channel_metadata_file(channel_key):
+    return channel_root(channel_key) / "channel.json"
+
+
+def channel_pid_file(channel_key):
+    return channel_root(channel_key) / "ffmpeg.pid"
+
+
+def channel_log_file(channel_key):
+    return channel_root(channel_key) / "ffmpeg.log"
+
+
+def channel_hls_dir(channel_key):
+    return CHANNELS_HLS_DIR / channel_key
+
+
+def channel_stream_path(channel_key):
+    return channel_hls_dir(channel_key) / "index.m3u8"
+
+
+def read_channel_metadata(channel_key):
+    path = channel_metadata_file(channel_key)
+    if not path.exists():
+        return None
+
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return None
+
+
+def write_channel_metadata(channel_key, payload):
+    root = channel_root(channel_key)
+    root.mkdir(parents=True, exist_ok=True)
+    channel_metadata_file(channel_key).write_text(
+        json.dumps(payload, ensure_ascii=False, indent=2),
+        encoding="utf-8",
+    )
+
+
+def stop_channel_process(channel_key):
+    pid_path = channel_pid_file(channel_key)
+    if not pid_path.exists():
+        return False
+
+    try:
+        pid = int(pid_path.read_text(encoding="utf-8").strip())
+    except (OSError, ValueError):
+        pid_path.unlink(missing_ok=True)
+        return False
+
+    try:
+        os.kill(pid, signal.SIGTERM)
+    except ProcessLookupError:
+        pid_path.unlink(missing_ok=True)
+        return False
+    except OSError:
+        pid_path.unlink(missing_ok=True)
+        return False
+
+    pid_path.unlink(missing_ok=True)
+    return True
+
+
+def cleanup_channel_hls(channel_key):
+    output_dir = channel_hls_dir(channel_key)
+    if not output_dir.exists():
+        return
+
+    for path in output_dir.iterdir():
+        if path.is_file():
+            path.unlink()
+
+
+def build_channel_playlist(channel_key, files):
+    root = channel_root(channel_key)
+    root.mkdir(parents=True, exist_ok=True)
+    playlist_path = channel_playlist_file(channel_key)
+
+    lines = []
+    for file_item in sorted(files, key=lambda item: int(item.get("order", 0))):
+        filename = sanitize_filename(file_item.get("filename") or "")
+        if not filename:
+            continue
+
+        file_path = VIDEO_DIR / filename
+        if not file_path.is_file():
+            raise FileNotFoundError(f"Файл не найден: {filename}")
+
+        lines.append(f"file '{file_path}'")
+
+    playlist_path.write_text("\n".join(lines) + ("\n" if lines else ""), encoding="utf-8")
+    return playlist_path, len(lines)
+
+
+def start_channel_process(channel_key):
+    playlist_path = channel_playlist_file(channel_key)
+    if not playlist_path.exists() or playlist_path.stat().st_size == 0:
+        raise RuntimeError("Плейлист канала пуст")
+
+    stop_channel_process(channel_key)
+    cleanup_channel_hls(channel_key)
+
+    output_dir = channel_hls_dir(channel_key)
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    with channel_log_file(channel_key).open("ab") as log_file:
+        process = subprocess.Popen(
+            [
+                "ffmpeg",
+                "-hide_banner",
+                "-loglevel",
+                "warning",
+                "-nostdin",
+                "-y",
+                "-re",
+                "-stream_loop",
+                "-1",
+                "-f",
+                "concat",
+                "-safe",
+                "0",
+                "-i",
+                str(playlist_path),
+                "-map",
+                "0:v:0",
+                "-map",
+                "0:a:0?",
+                "-c:v",
+                "copy",
+                "-c:a",
+                "aac",
+                "-b:a",
+                "192k",
+                "-ar",
+                "48000",
+                "-af",
+                "aresample=async=1:first_pts=0",
+                "-f",
+                "hls",
+                "-hls_time",
+                "4",
+                "-hls_list_size",
+                "6",
+                "-hls_start_number_source",
+                "epoch",
+                "-hls_flags",
+                "delete_segments+append_list+omit_endlist+independent_segments+temp_file+discont_start",
+                "-hls_segment_filename",
+                str(output_dir / "segment_%09d.ts"),
+                str(output_dir / "index.m3u8"),
+            ],
+            stdout=log_file,
+            stderr=log_file,
+            start_new_session=True,
+        )
+
+    channel_pid_file(channel_key).write_text(str(process.pid), encoding="utf-8")
+    return process.pid
+
+
+def collect_channels():
+    ensure_dirs()
+    channels = []
+    for metadata_path in CHANNELS_ROOT.glob("*/channel.json"):
+        channel_key = metadata_path.parent.name
+        metadata = read_channel_metadata(channel_key) or {}
+        stream_path = channel_stream_path(channel_key)
+        channels.append(
+            {
+                "channelKey": channel_key,
+                "channelName": metadata.get("channelName") or channel_key,
+                "itemCount": int(metadata.get("itemCount") or len(metadata.get("files") or [])),
+                "playlistExists": stream_path.exists(),
+                "streamPath": str(stream_path),
+                "updatedAt": metadata.get("updatedAt"),
+            }
+        )
+
+    channels.sort(key=lambda item: item.get("channelName", ""))
+    return channels
+
+
+def restore_saved_channels():
+    ensure_dirs()
+    for metadata_path in CHANNELS_ROOT.glob("*/channel.json"):
+        channel_key = metadata_path.parent.name
+        metadata = read_channel_metadata(channel_key)
+        if not metadata:
+            continue
+
+        files = metadata.get("files") or []
+        if not files:
+            continue
+
+        try:
+            build_channel_playlist(channel_key, files)
+            pid = start_channel_process(channel_key)
+            metadata["pid"] = pid
+            metadata["updatedAt"] = datetime.now(timezone.utc).isoformat()
+            metadata["playlistPath"] = str(channel_playlist_file(channel_key))
+            metadata["streamPath"] = str(channel_stream_path(channel_key))
+            metadata["itemCount"] = len(files)
+            write_channel_metadata(channel_key, metadata)
+        except Exception:
+            continue
+
+
 def collect_stream(services):
     playlist_exists = PLAYLIST_PATH.exists()
     segment_paths = [path for path in HLS_DIR.glob("*.ts") if path.is_file()] if HLS_DIR.exists() else []
@@ -154,8 +413,8 @@ def collect_stream(services):
 
     return {
         "status": status,
-      "statusLabel": STREAM_STATUS_TITLES.get(status, "НЕИЗВЕСТНО"),
-      "statusBadgeLabel": label_for_state(status),
+        "statusLabel": STREAM_STATUS_TITLES.get(status, "НЕИЗВЕСТНО"),
+        "statusBadgeLabel": label_for_state(status),
         "playlistExists": playlist_exists,
         "playlistPath": str(PLAYLIST_PATH),
         "playlistUpdatedAt": iso_timestamp(playlist_mtime) if playlist_mtime else None,
@@ -181,6 +440,7 @@ def build_payload():
         "generatedAt": datetime.now(timezone.utc).isoformat(),
         "services": services,
         "videos": collect_videos(),
+        "channels": collect_channels(),
         "stream": collect_stream(services),
         "system": collect_system(),
     }
@@ -238,7 +498,6 @@ def delete_files_by_basename(name):
             "error": "Требуется поле name в JSON",
         }
 
-    # Match only the stem (name without extension), disallow path-like input.
     if "/" in requested or "\\" in requested or requested in {".", ".."}:
         return {
             "ok": False,
@@ -268,17 +527,9 @@ def get_request_api_key(handler):
 
 
 def is_api_key_valid(handler):
-    # If key is not configured, any mutating API operation must be denied.
     if not API_KEY:
         return False
     return get_request_api_key(handler) == API_KEY
-
-
-def sanitize_filename(raw_name):
-    safe_name = Path(raw_name).name.strip()
-    if not safe_name:
-        return None
-    return safe_name
 
 
 def save_uploaded_video(handler):
@@ -316,8 +567,8 @@ def save_uploaded_video(handler):
             "error": "Пустое тело запроса",
         }
 
-    VIDEO_DIR.mkdir(parents=True, exist_ok=True)
-    destination = VIDEO_DIR / safe_name
+    ensure_dirs()
+    destination = unique_destination_path(VIDEO_DIR, safe_name)
 
     remaining = bytes_to_read
     with destination.open("wb") as output:
@@ -339,10 +590,65 @@ def save_uploaded_video(handler):
 
     return {
         "ok": True,
-        "filename": safe_name,
+        "filename": destination.name,
         "path": str(destination),
         "bytesWritten": written_bytes,
     }
+
+
+def sync_channel(payload):
+    ensure_dirs()
+
+    channel_key = sanitize_channel_key(payload.get("channelKey"))
+    files = payload.get("files") or []
+
+    if not channel_key:
+        return {"ok": False, "statusCode": 400, "error": "Требуется channelKey"}
+
+    if not isinstance(files, list) or not files:
+        return {"ok": False, "statusCode": 400, "error": "Требуется непустой список files"}
+
+    playlist_path, item_count = build_channel_playlist(channel_key, files)
+    pid = start_channel_process(channel_key)
+    metadata = {
+        "channelKey": channel_key,
+        "channelName": (payload.get("channelName") or "").strip(),
+        "files": files,
+        "updatedAt": datetime.now(timezone.utc).isoformat(),
+        "playlistPath": str(playlist_path),
+        "streamPath": str(channel_stream_path(channel_key)),
+        "itemCount": item_count,
+        "pid": pid,
+    }
+    write_channel_metadata(channel_key, metadata)
+
+    return {
+        "ok": True,
+        "channelKey": channel_key,
+        "playlistPath": str(playlist_path),
+        "streamPath": str(channel_stream_path(channel_key)),
+        "pid": pid,
+        "itemCount": item_count,
+    }
+
+
+def delete_channel(channel_key):
+    safe_key = sanitize_channel_key(channel_key)
+    if not safe_key:
+        return {"ok": False, "statusCode": 400, "error": "Требуется channelKey"}
+
+    stop_channel_process(safe_key)
+    cleanup_channel_hls(safe_key)
+
+    root = channel_root(safe_key)
+    if root.exists():
+        shutil.rmtree(root, ignore_errors=True)
+
+    output_dir = channel_hls_dir(safe_key)
+    if output_dir.exists():
+        shutil.rmtree(output_dir, ignore_errors=True)
+
+    return {"ok": True, "channelKey": safe_key}
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -369,7 +675,14 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_POST(self):
         path = urlparse(self.path).path
-        if path in {"/videos/delete-all", "/videos/delete-by-name", "/videos/upload"} and not is_api_key_valid(self):
+        protected_paths = {
+            "/videos/delete-all",
+            "/videos/delete-by-name",
+            "/videos/upload",
+            "/channels/sync",
+            "/channels/delete",
+        }
+        if path in protected_paths and not is_api_key_valid(self):
             self._send_json({"error": "не авторизован"}, status_code=401)
             return
 
@@ -419,6 +732,50 @@ class Handler(BaseHTTPRequestHandler):
             })
             return
 
+        if path == "/channels/sync":
+            payload, error = parse_json_body(self)
+            if error:
+                self._send_json({"error": error}, status_code=400)
+                return
+
+            try:
+                result = sync_channel(payload)
+            except FileNotFoundError as exc:
+                self._send_json({"error": str(exc)}, status_code=404)
+                return
+            except RuntimeError as exc:
+                self._send_json({"error": str(exc)}, status_code=400)
+                return
+
+            if not result.get("ok"):
+                self._send_json({"error": result["error"]}, status_code=result["statusCode"])
+                return
+
+            self._send_json({
+                "status": "ok",
+                "message": "Канал синхронизирован",
+                **result,
+            })
+            return
+
+        if path == "/channels/delete":
+            payload, error = parse_json_body(self)
+            if error:
+                self._send_json({"error": error}, status_code=400)
+                return
+
+            result = delete_channel(payload.get("channelKey"))
+            if not result.get("ok"):
+                self._send_json({"error": result["error"]}, status_code=result["statusCode"])
+                return
+
+            self._send_json({
+                "status": "ok",
+                "message": "Канал удален",
+                **result,
+            })
+            return
+
         self._send_json({"error": "не найдено"}, status_code=404)
 
     def log_message(self, format, *args):
@@ -426,6 +783,8 @@ class Handler(BaseHTTPRequestHandler):
 
 
 def main():
+    ensure_dirs()
+    restore_saved_channels()
     server = ThreadingHTTPServer((API_HOST, API_PORT), Handler)
     server.serve_forever()
 
