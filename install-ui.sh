@@ -215,6 +215,37 @@ server {
       proxy_read_timeout 600s;
     }
 
+    location = /api/channels/sync {
+      limit_except POST { deny all; }
+      proxy_pass http://127.0.0.1:$API_PORT/channels/sync;
+      proxy_http_version 1.1;
+      proxy_set_header Host \$host;
+      proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+      proxy_read_timeout 600s;
+    }
+
+    location = /api/channels/delete {
+      limit_except POST { deny all; }
+      proxy_pass http://127.0.0.1:$API_PORT/channels/delete;
+      proxy_http_version 1.1;
+      proxy_set_header Host \$host;
+      proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+      proxy_read_timeout 600s;
+    }
+
+    location ~ ^/(channels/.+\.m3u8|channels/.+\.ts|index\.m3u8|segment_[0-9]+\.ts)$ {
+        root /var/www/hls;
+        add_header Access-Control-Allow-Origin *;
+        add_header Cache-Control "no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0";
+
+        types {
+            application/vnd.apple.mpegurl m3u8;
+            video/mp2t ts;
+        }
+
+        try_files \$uri =404;
+    }
+
     location / {
         try_files \$uri \$uri/ /index.html;
     }
