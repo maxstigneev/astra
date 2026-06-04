@@ -16,13 +16,23 @@
 curl -fsSL https://raw.githubusercontent.com/maxstigneev/astra/main/install.sh -o install.sh && chmod +x install.sh && sudo ./install.sh
 ```
 После установки поток доступен по адресу:
-http://IP_СЕРВЕРА/index.m3u8
+
+`http://IP_СЕРВЕРА/index.m3u8`
 
 Видео файлы загружать в директорию:
+```
 /var/www/video
+```
 
 Файлы потока доступны в директории:
+```
 /var/www/hls
+```
+
+Просмотреть переменные окружения:
+```
+cat /opt/ui/.env
+```
 
 ## Как работает
 video files → playlist → ffmpeg → HLS → nginx
