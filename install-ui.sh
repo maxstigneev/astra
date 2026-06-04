@@ -184,6 +184,14 @@ server {
         add_header Cache-Control "no-store";
     }
 
+    location = /api/videos/status {
+        proxy_pass http://127.0.0.1:$API_PORT/videos/status;
+        proxy_http_version 1.1;
+        proxy_set_header Host \$host;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        add_header Cache-Control "no-store";
+    }
+
     location = /api/health {
         proxy_pass http://127.0.0.1:$API_PORT/health;
         proxy_http_version 1.1;

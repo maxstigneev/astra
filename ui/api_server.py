@@ -446,6 +446,13 @@ def build_payload():
     }
 
 
+def build_videos_payload():
+    return {
+        "generatedAt": datetime.now(timezone.utc).isoformat(),
+        "videos": collect_videos(),
+    }
+
+
 def delete_source_files():
     deleted = []
     if not VIDEO_DIR.exists():
@@ -665,6 +672,14 @@ class Handler(BaseHTTPRequestHandler):
         path = urlparse(self.path).path
         if path == "/status":
             self._send_json(build_payload())
+            return
+
+        if path == "/videos/status":
+            if not is_api_key_valid(self):
+                self._send_json({"error": "не авторизован"}, status_code=401)
+                return
+
+            self._send_json(build_videos_payload())
             return
 
         if path == "/health":
