@@ -50,6 +50,8 @@ video files → playlist → ffmpeg → HLS → nginx
 - одинакового формата!
 - одинаковых кодеков!
 
+Cesbo Astra ставится только на `Linux x86_64`. На `arm64/aarch64` бинарник `https://cesbo.com/astra-latest` не запустится и даст `Exec format error`.
+
 ## Файлы скриптов
 
 /usr/local/bin/build_playlist.sh

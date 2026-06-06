@@ -5,6 +5,7 @@ set -euo pipefail
 
 log() { echo -e "\e[32m[INFO]\e[0m $1"; }
 warn() { echo -e "\e[33m[WARN]\e[0m $1"; }
+fail() { echo -e "\e[31m[ERROR]\e[0m $1" >&2; }
 
 progress() {
     local duration=$1
@@ -386,14 +387,29 @@ EOF
 setup_astra() {
     log "Установка Cesbo Astra ..."
     echo
-    curl -Lo /usr/bin/astra https://cesbo.com/astra-latest
+
+    local server_arch
+    local file_info
+
+    server_arch="$(uname -m)"
+    if [[ "$server_arch" != "x86_64" && "$server_arch" != "amd64" ]]; then
+        warn "Cesbo Astra поддерживается только на Linux x86_64. Текущая архитектура: $server_arch"
+        warn "Установка Astra пропущена."
+        return
+    fi
+
+    if ! curl -fLo /usr/bin/astra https://cesbo.com/astra-latest; then
+        fail "Не удалось скачать бинарник Cesbo Astra."
+        return
+    fi
+
     chmod +x /usr/bin/astra
 
-    if command -v astra >/dev/null 2>&1; then
+    if /usr/bin/astra -v >/dev/null 2>&1; then
         echo
         log "Astra установлена"
         echo
-        astra init
+        /usr/bin/astra init
         echo
         log "Запуск сервиса Astra..."
         systemctl start astra
@@ -413,8 +429,11 @@ setup_astra() {
         fi
 
     else
+        file_info="$(file -b /usr/bin/astra 2>/dev/null || echo 'не удалось определить тип файла')"
         echo
-        warn "Не удалось установить Astra"
+        warn "Не удалось запустить Astra после скачивания."
+        warn "Тип файла /usr/bin/astra: $file_info"
+        warn "Проверьте архитектуру сервера и корректность скачанного бинарника."
         echo
     fi
 }
@@ -470,7 +489,7 @@ main() {
     echo
 
     # проверяем, установлена ли астра, и если да - выводим информацию о ней
-    if command -v astra >/dev/null 2>&1; then
+    if /usr/bin/astra -v >/dev/null 2>&1; then
         echo "Astra доступна по адресу:"
         echo "http://$(hostname -I | awk '{print $1}'):8000"
         echo
