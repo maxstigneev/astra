@@ -356,14 +356,27 @@ def collect_channels():
         channel_key = metadata_path.parent.name
         metadata = read_channel_metadata(channel_key) or {}
         stream_path = channel_stream_path(channel_key)
+        files = metadata.get("files") or []
+        normalized_files = []
+        for item in sorted(files, key=lambda row: int(row.get("order", 0))):
+            normalized_files.append(
+                {
+                    "id": int(item.get("id") or 0),
+                    "order": int(item.get("order") or 0),
+                    "filename": item.get("filename") or "",
+                    "title": item.get("title") or item.get("filename") or "",
+                    "duration": int(item.get("duration") or 0),
+                }
+            )
         channels.append(
             {
                 "channelKey": channel_key,
                 "channelName": metadata.get("channelName") or channel_key,
-                "itemCount": int(metadata.get("itemCount") or len(metadata.get("files") or [])),
+                "itemCount": int(metadata.get("itemCount") or len(files)),
                 "playlistExists": stream_path.exists(),
                 "streamPath": str(stream_path),
                 "updatedAt": metadata.get("updatedAt"),
+                "files": normalized_files,
             }
         )
 

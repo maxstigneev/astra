@@ -12,6 +12,7 @@ const healthyServices = document.getElementById("healthyServices");
 const serviceBadge = document.getElementById("serviceBadge");
 const servicesTable = document.getElementById("servicesTable");
 const fileList = document.getElementById("fileList");
+const channelList = document.getElementById("channelList");
 const deleteAllButton = document.getElementById("deleteAllButton");
 const playlistPath = document.getElementById("playlistPath");
 const diskFree = document.getElementById("diskFree");
@@ -157,6 +158,73 @@ function renderFiles(files) {
 	});
 }
 
+function renderChannels(channels) {
+	channelList.innerHTML = "";
+
+	if (!channels.length) {
+		const empty = document.createElement("div");
+		empty.className = "channel-card";
+		empty.innerHTML = `
+      <div class="channel-card__header">
+        <div>
+          <strong>Каналы не созданы</strong>
+          <p class="meta">После синхронизации из hotel-backend они появятся здесь</p>
+        </div>
+      </div>
+    `;
+		channelList.appendChild(empty);
+		return;
+	}
+
+	channels.forEach((channel) => {
+		const details = document.createElement("details");
+		details.className = "channel-card";
+
+		const items = Array.isArray(channel.files) ? channel.files : [];
+		const filesHtml = items.length
+			? items.map((file) => `
+          <div class="channel-file">
+            <div>
+              <strong>${file.order}. ${file.title || file.filename}</strong>
+              <p class="meta mono">${file.filename}</p>
+            </div>
+            <div class="channel-file__meta">${formatDuration(file.duration || 0)}</div>
+          </div>
+        `).join("")
+			: `<div class="channel-file channel-file--empty">
+          <div>
+            <strong>Файлы отсутствуют</strong>
+            <p class="meta">Состав канала пока не передан</p>
+          </div>
+        </div>`;
+
+		const streamState = channel.playlistExists ? "good" : "warn";
+		const streamLabel = channel.playlistExists ? "Поток готов" : "Поток не собран";
+
+		details.innerHTML = `
+      <summary class="channel-card__header">
+        <div>
+          <strong>${channel.channelName}</strong>
+          <p class="meta mono">${channel.channelKey}</p>
+        </div>
+        <div class="channel-card__meta">
+          <span class="status-pill ${streamState}">${streamLabel}</span>
+          <span class="meta">${channel.itemCount} рол.</span>
+        </div>
+      </summary>
+      <div class="channel-card__body">
+        <div class="channel-card__info">
+          <p class="meta">HLS: <span class="mono">${channel.streamPath || "--"}</span></p>
+          <p class="meta">Обновлен: ${formatDate(channel.updatedAt)}</p>
+        </div>
+        <div class="channel-file-list">${filesHtml}</div>
+      </div>
+    `;
+
+		channelList.appendChild(details);
+	});
+}
+
 function renderPayload(payload) {
 	const healthyCount = payload.services.filter((service) => service.healthy).length;
 
@@ -191,6 +259,7 @@ function renderPayload(payload) {
 
 	renderServices(payload.services);
 	renderFiles(payload.videos.recentFiles);
+	renderChannels(payload.channels || []);
 }
 
 async function refresh() {

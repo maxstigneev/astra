@@ -262,7 +262,8 @@ h2 {
 }
 
 .table-shell,
-.file-list {
+.file-list,
+.channel-list {
 	display: grid;
 	gap: 0.75rem;
 }
@@ -285,6 +286,73 @@ h2 {
 .file-item {
 	grid-template-columns: 1.3fr 0.8fr 0.9fr;
 	align-items: center;
+}
+
+.channel-card {
+	border-radius: 18px;
+	background: var(--bg-soft);
+	border: 1px solid rgba(160, 198, 255, 0.08);
+	overflow: hidden;
+}
+
+.channel-card[open] {
+	border-color: rgba(94, 234, 212, 0.24);
+}
+
+.channel-card__header {
+	list-style: none;
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	gap: 1rem;
+	padding: 1rem 1.1rem;
+	cursor: pointer;
+}
+
+.channel-card__header::-webkit-details-marker {
+	display: none;
+}
+
+.channel-card__meta {
+	display: flex;
+	align-items: center;
+	gap: 0.75rem;
+	text-align: right;
+}
+
+.channel-card__body {
+	padding: 0 1.1rem 1.1rem;
+	border-top: 1px solid rgba(160, 198, 255, 0.08);
+}
+
+.channel-card__info {
+	display: grid;
+	gap: 0.35rem;
+	padding: 0.9rem 0 1rem;
+}
+
+.channel-file-list {
+	display: grid;
+	gap: 0.65rem;
+}
+
+.channel-file {
+	display: grid;
+	grid-template-columns: 1fr auto;
+	gap: 1rem;
+	padding: 0.85rem 0.95rem;
+	border-radius: 14px;
+	background: rgba(16, 31, 50, 0.72);
+	border: 1px solid rgba(160, 198, 255, 0.08);
+}
+
+.channel-file--empty {
+	grid-template-columns: 1fr;
+}
+
+.channel-file__meta {
+	color: var(--muted);
+	font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
 }
 
 .mono {
@@ -353,7 +421,8 @@ h2 {
 	.system-grid,
 	.link-grid,
 	.table-row,
-	.file-item {
+	.file-item,
+	.channel-file {
 		grid-template-columns: 1fr;
 	}
 
